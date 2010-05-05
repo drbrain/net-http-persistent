@@ -1,0 +1,8 @@
+.autotest
+History.txt
+Manifest.txt
+README.txt
+Rakefile
+lib/net/http/faster.rb
+lib/net/http/persistent.rb
+test/test_net_http_persistent.rb
