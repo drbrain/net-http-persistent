@@ -109,11 +109,13 @@ class Net::HTTP::Persistent
     connections[connection_id] ||= Net::HTTP.new uri.host, uri.port
     connection = connections[connection_id]
 
-    connection.set_debug_output @debug_output if @debug_output
+    unless connection.started? then
+      connection.set_debug_output @debug_output if @debug_output
 
-    ssl connection if uri.scheme == 'https' and not connection.started?
+      ssl connection if uri.scheme == 'https'
 
-    connection.start unless connection.started?
+      connection.start
+    end
 
     connection
   rescue Errno::ECONNREFUSED
