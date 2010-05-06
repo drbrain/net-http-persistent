@@ -29,7 +29,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent use are using
 
-  VERSION = '1.0'
+  VERSION = '1.0.1'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -48,6 +48,14 @@ class Net::HTTP::Persistent
   # VERIFY_PEER.
 
   attr_accessor :ca_file
+
+  ##
+  # Sends debug_output to this IO via Net::HTTP#set_debug_output.
+  #
+  # Never use this method in production code, it causes a serious security
+  # hole.
+
+  attr_accessor :debug_output
 
   ##
   # Headers that are added to every request
@@ -78,8 +86,9 @@ class Net::HTTP::Persistent
   attr_accessor :verify_mode
 
   def initialize # :nodoc:
-    @keep_alive = 30
-    @headers = {}
+    @debug_output = nil
+    @headers      = {}
+    @keep_alive   = 30
 
     @certificate     = nil
     @ca_file         = nil
@@ -99,6 +108,8 @@ class Net::HTTP::Persistent
 
     connections[connection_id] ||= Net::HTTP.new uri.host, uri.port
     connection = connections[connection_id]
+
+    connection.set_debug_output @debug_output if @debug_output
 
     ssl connection if uri.scheme == 'https' and not connection.started?
 

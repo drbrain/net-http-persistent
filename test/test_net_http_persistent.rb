@@ -1,6 +1,7 @@
 require 'minitest/autorun'
 require 'net/http/persistent'
 require 'openssl'
+require 'stringio'
 
 class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
@@ -59,6 +60,19 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_same cached, c
   end
 
+  def test_connection_for_debug_output
+    io = StringIO.new
+    @http.debug_output = io
+
+    c = @http.connection_for @uri
+
+    assert c.started?
+    assert_equal io, c.instance_variable_get(:@debug_output)
+
+    assert_includes conns.keys, 'example.com:80'
+    assert_same c, conns['example.com:80']
+  end
+
   def test_connection_for_refused
     cached = Object.new
     def cached.address; 'example.com' end
@@ -71,7 +85,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
       @http.connection_for @uri
     end
 
-    assert_match %r%connection refused%, e
+    assert_match %r%connection refused%, e.message
   end
 
   def test_error_message
@@ -122,7 +136,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
       @http.reset c
     end
 
-    assert_match %r%host down%, e
+    assert_match %r%host down%, e.message
   end
 
   def test_reset_refused
@@ -137,7 +151,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
       @http.reset c
     end
 
-    assert_match %r%connection refused%, e
+    assert_match %r%connection refused%, e.message
   end
 
   def test_request
@@ -153,7 +167,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal '/path',      req.path
     assert_equal 'keep-alive', req['connection']
     assert_equal '30',         req['keep-alive']
-    assert_equal 'test ua',    req['user-agent']
+    assert_match %r%test ua%,  req['user-agent']
 
     assert_equal 1, reqs[c.object_id]
   end

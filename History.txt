@@ -1,6 +1,13 @@
+=== 1.0.1 / 2010-05-05
+
+* Minor Enhancements
+  * Added #debug_output
+  * Now uses Hoe minitest plugin
+* Bug fixes
+  * Tests pass on 1.9
+
 === 1.0.0 / 2010-05-04
 
-* 1 major enhancement
-
+* Major Enhancements
   * Birthday!
 

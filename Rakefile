@@ -4,6 +4,7 @@ require 'rubygems'
 require 'hoe'
 
 Hoe.plugin :git
+Hoe.plugin :minitest
 
 Hoe.spec 'net-http-persistent' do |p|
   self.rubyforge_name = 'seattlerb'
