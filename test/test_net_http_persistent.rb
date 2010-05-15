@@ -23,8 +23,9 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def teardown
-    Thread.current[:net_http_persistent_connections] = nil
-    Thread.current[:net_http_persistent_requests] = nil
+    Thread.current.keys.each do |key|
+      Thread.current[key] = nil
+    end
   end
 
   def connection
@@ -45,20 +46,25 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def conns
-    Thread.current[:net_http_persistent_connections] ||= {}
+    Thread.current[@http.connection_key] ||= {}
   end
 
   def reqs
-    Thread.current[:net_http_persistent_requests] ||= {}
+    Thread.current[@http.request_key] ||= {}
   end
 
   def test_initialize
     assert_nil @http.proxy_uri
   end
 
+  def test_initialize_name
+    http = Net::HTTP::Persistent.new 'name'
+    assert_equal 'name', http.name
+  end
+
   def test_initialize_env
     ENV['HTTP_PROXY'] = 'proxy.example'
-    http = Net::HTTP::Persistent.new :ENV
+    http = Net::HTTP::Persistent.new nil, :ENV
 
     assert_equal URI.parse('http://proxy.example'), http.proxy_uri
   end
@@ -66,7 +72,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   def test_initialize_uri
     proxy_uri = URI.parse 'http://proxy.example'
 
-    http = Net::HTTP::Persistent.new proxy_uri
+    http = Net::HTTP::Persistent.new nil, proxy_uri
 
     assert_equal proxy_uri, http.proxy_uri
   end
@@ -106,12 +112,23 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_same c, conns['example.com:80']
   end
 
+  def test_connection_for_name
+    http = Net::HTTP::Persistent.new 'name'
+    uri = URI.parse 'http://example/'
+
+    c = http.connection_for uri
+
+    assert c.started?
+
+    refute_includes conns.keys, 'example:80'
+  end
+
   def test_connection_for_proxy
     uri = URI.parse 'http://proxy.example'
     uri.user     = 'johndoe'
     uri.password = 'muffins'
 
-    http = Net::HTTP::Persistent.new uri
+    http = Net::HTTP::Persistent.new nil, uri
 
     c = http.connection_for @uri
 
@@ -316,9 +333,15 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     cs = conns
     rs = reqs
 
-    @http.shutdown
+    orig = @http
+    @http = Net::HTTP::Persistent.new 'name'
+    c2 = connection
+
+    orig.shutdown
 
     assert c.finished?
+    refute c2.finished?
+
     refute_same cs, conns
     refute_same rs, reqs
   end

@@ -50,6 +50,11 @@ class Net::HTTP::Persistent
   attr_accessor :ca_file
 
   ##
+  # Where this instance's connections live in the thread local variables
+
+  attr_reader :connection_key # :nodoc:
+
+  ##
   # Sends debug_output to this IO via Net::HTTP#set_debug_output.
   #
   # Never use this method in production code, it causes a serious security
@@ -68,6 +73,12 @@ class Net::HTTP::Persistent
   attr_accessor :keep_alive
 
   ##
+  # A name for this connection.  Allows you to keep your connections apart
+  # from everybody else's.
+
+  attr_reader :name
+
+  ##
   # This client's SSL private key
 
   attr_accessor :private_key
@@ -76,6 +87,11 @@ class Net::HTTP::Persistent
   # The URL through which requests will be proxied
 
   attr_reader :proxy_uri
+
+  ##
+  # Where this instance's request counts live in the thread local variables
+
+  attr_reader :request_key # :nodoc:
 
   ##
   # SSL verification callback.  Used when ca_file is set.
@@ -93,10 +109,16 @@ class Net::HTTP::Persistent
   ##
   # Creates a new Net::HTTP::Persistent.
   #
+  # Set +name+ to keep your connections apart from everybody else's.  Not
+  # required currently, but highly recommended.  Your library name should be
+  # good enough.
+  #
   # +proxy+ may be set to a URI::HTTP or :ENV to pick up proxy options from
   # the environment.  See proxy_from_env for details.
 
-  def initialize proxy = nil
+  def initialize name = nil, proxy = nil
+    @name = name
+
     @proxy_uri = case proxy
                  when :ENV      then proxy_from_env
                  when URI::HTTP then proxy
@@ -119,6 +141,11 @@ class Net::HTTP::Persistent
     @headers      = {}
     @keep_alive   = 30
 
+    key = ['net_http_persistent', name, 'connections'].compact.join '_'
+    @connection_key = key.intern
+    key = ['net_http_persistent', name, 'requests'].compact.join '_'
+    @request_key    = key.intern
+
     @certificate     = nil
     @ca_file         = nil
     @private_key     = nil
@@ -130,8 +157,8 @@ class Net::HTTP::Persistent
   # Creates a new connection for +uri+
 
   def connection_for uri
-    Thread.current[:net_http_persistent_connections] ||= {}
-    connections = Thread.current[:net_http_persistent_connections]
+    Thread.current[@connection_key] ||= {}
+    connections = Thread.current[@connection_key]
 
     net_http_args = [uri.host, uri.port]
     connection_id = net_http_args.join ':'
@@ -163,7 +190,7 @@ class Net::HTTP::Persistent
 
   def error_message connection
     requests =
-      Thread.current[:net_http_persistent_requests][connection.object_id]
+      Thread.current[@request_key][connection.object_id]
 
     "after #{requests} requests on #{connection.object_id}"
   end
@@ -213,7 +240,7 @@ class Net::HTTP::Persistent
   # Finishes then restarts the Net::HTTP +connection+
 
   def reset connection
-    Thread.current[:net_http_persistent_requests].delete connection.object_id
+    Thread.current[@request_key].delete connection.object_id
 
     begin
       connection.finish
@@ -234,7 +261,7 @@ class Net::HTTP::Persistent
   # +req+ must be a Net::HTTPRequest subclass (see Net::HTTP for a list).
 
   def request uri, req = nil
-    Thread.current[:net_http_persistent_requests] ||= Hash.new 0
+    Thread.current[@request_key] ||= Hash.new 0
     retried      = false
     bad_response = false
 
@@ -251,7 +278,7 @@ class Net::HTTP::Persistent
     connection_id = connection.object_id
 
     begin
-      count = Thread.current[:net_http_persistent_requests][connection_id] += 1
+      count = Thread.current[@request_key][connection_id] += 1
       response = connection.request req
 
     rescue Net::HTTPBadResponse => e
@@ -286,12 +313,12 @@ class Net::HTTP::Persistent
   # this in each thread.
 
   def shutdown
-    Thread.current[:net_http_persistent_connections].each do |_, connection|
+    Thread.current[@connection_key].each do |_, connection|
       connection.finish
     end
 
-    Thread.current[:net_http_persistent_connections] = nil
-    Thread.current[:net_http_persistent_requests]    = nil
+    Thread.current[@connection_key] = nil
+    Thread.current[@request_key]    = nil
   end
 
   ##
