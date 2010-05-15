@@ -6,6 +6,8 @@
   * Added +name+ parameter to Net::HTTP::Persistent::new for separation of
     connection pools.
   * Added Net::HTTP::Persistent#shutdown so you can clean up after yourself
+  * Net::HTTP::Persistent now suppresses "peer certificate won't be verified
+    in this SSL session" warning.
 
 === 1.0.1 / 2010-05-05
 

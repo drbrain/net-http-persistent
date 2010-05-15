@@ -99,8 +99,8 @@ class Net::HTTP::Persistent
   attr_accessor :verify_callback
 
   ##
-  # HTTPS verify mode.  Set to OpenSSL::SSL::VERIFY_NONE to ignore certificate
-  # problems.
+  # HTTPS verify mode.  Defaults to OpenSSL::SSL::VERIFY_NONE which ignores
+  # certificate problems.
   #
   # You can use +verify_mode+ to override any default values.
 
@@ -339,7 +339,11 @@ class Net::HTTP::Persistent
       connection.key  = @private_key
     end
 
-    connection.verify_mode = @verify_mode if @verify_mode
+    connection.verify_mode = if @verify_mode then
+                               @verify_mode
+                             else
+                               OpenSSL::SSL::VERIFY_NONE # suppress warning
+                             end
   end
 
 end
