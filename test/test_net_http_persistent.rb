@@ -30,7 +30,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   def connection
     c = Object.new
     # Net::HTTP
-    def c.finish; @finish = true end
+    def c.finish; @finished = true end
     def c.request(req) @req = req; :response end
     def c.reset; @reset = true end
     def c.start; end
@@ -39,6 +39,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     def c.req() @req; end
     def c.reset?; @reset end
     def c.started?; true end
+    def c.finished?; @finished end
     conns["#{@uri.host}:#{@uri.port}"] = c
     c
   end
@@ -308,6 +309,18 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal :response, res
 
     assert_same post, req
+  end
+
+  def test_shutdown
+    c = connection
+    cs = conns
+    rs = reqs
+
+    @http.shutdown
+
+    assert c.finished?
+    refute_same cs, conns
+    refute_same rs, reqs
   end
 
   def test_ssl

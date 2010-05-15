@@ -280,6 +280,21 @@ class Net::HTTP::Persistent
   end
 
   ##
+  # Shuts down all connections in this thread.
+  #
+  # If you've used Net::HTTP::Persistent across multiple threads you must call
+  # this in each thread.
+
+  def shutdown
+    Thread.current[:net_http_persistent_connections].each do |_, connection|
+      connection.finish
+    end
+
+    Thread.current[:net_http_persistent_connections] = nil
+    Thread.current[:net_http_persistent_requests]    = nil
+  end
+
+  ##
   # Enables SSL on +connection+
 
   def ssl connection

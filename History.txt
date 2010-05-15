@@ -3,6 +3,7 @@
 * Minor Enhancements
   * Proxy support, see Net::HTTP::Persistent::new,
     Net::HTTP::Persistent#proxy_from_env
+  * Added Net::HTTP::Persistent#shutdown so you can clean up after yourself
 
 === 1.0.1 / 2010-05-05
 
