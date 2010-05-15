@@ -328,6 +328,9 @@ class Net::HTTP::Persistent
     require 'net/https'
     connection.use_ssl = true
 
+    # suppress warning but allow override
+    connection.verify_mode = OpenSSL::SSL::VERIFY_NONE unless @verify_mode
+
     if @ca_file then
       connection.ca_file = @ca_file
       connection.verify_mode = OpenSSL::SSL::VERIFY_PEER
@@ -339,11 +342,7 @@ class Net::HTTP::Persistent
       connection.key  = @private_key
     end
 
-    connection.verify_mode = if @verify_mode then
-                               @verify_mode
-                             else
-                               OpenSSL::SSL::VERIFY_NONE # suppress warning
-                             end
+    connection.verify_mode = @verify_mode if @verify_mode
   end
 
 end

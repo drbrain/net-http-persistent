@@ -353,7 +353,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     @http.ssl c
 
     assert c.use_ssl?
-    assert_nil c.verify_mode
+    assert_equal OpenSSL::SSL::VERIFY_NONE, c.verify_mode
     assert_nil c.verify_callback
   end
 
