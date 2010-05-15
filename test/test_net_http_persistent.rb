@@ -3,11 +3,23 @@ require 'net/http/persistent'
 require 'openssl'
 require 'stringio'
 
+class Net::HTTP
+  def connect
+  end
+end
+
 class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def setup
     @http = Net::HTTP::Persistent.new
     @uri  = URI.parse 'http://example.com/path'
+
+    ENV.delete 'http_proxy'
+    ENV.delete 'HTTP_PROXY'
+    ENV.delete 'http_proxy_user'
+    ENV.delete 'HTTP_PROXY_USER'
+    ENV.delete 'http_proxy_pass'
+    ENV.delete 'HTTP_PROXY_PASS'
   end
 
   def teardown
@@ -39,10 +51,30 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     Thread.current[:net_http_persistent_requests] ||= {}
   end
 
+  def test_initialize
+    assert_nil @http.proxy_uri
+  end
+
+  def test_initialize_env
+    ENV['HTTP_PROXY'] = 'proxy.example'
+    http = Net::HTTP::Persistent.new :ENV
+
+    assert_equal URI.parse('http://proxy.example'), http.proxy_uri
+  end
+
+  def test_initialize_uri
+    proxy_uri = URI.parse 'http://proxy.example'
+
+    http = Net::HTTP::Persistent.new proxy_uri
+
+    assert_equal proxy_uri, http.proxy_uri
+  end
+
   def test_connection_for
     c = @http.connection_for @uri
 
     assert c.started?
+    refute c.proxy?
 
     assert_includes conns.keys, 'example.com:80'
     assert_same c, conns['example.com:80']
@@ -73,6 +105,23 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_same c, conns['example.com:80']
   end
 
+  def test_connection_for_proxy
+    uri = URI.parse 'http://proxy.example'
+    uri.user     = 'johndoe'
+    uri.password = 'muffins'
+
+    http = Net::HTTP::Persistent.new uri
+
+    c = http.connection_for @uri
+
+    assert c.started?
+    assert c.proxy?
+
+    assert_includes conns.keys,
+                    'example.com:80:proxy.example:80:johndoe:muffins'
+    assert_same c, conns['example.com:80:proxy.example:80:johndoe:muffins']
+  end
+
   def test_connection_for_refused
     cached = Object.new
     def cached.address; 'example.com' end
@@ -93,6 +142,58 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     reqs[c.object_id] = 5
 
     assert_equal "after 5 requests on #{c.object_id}", @http.error_message(c)
+  end
+
+  def test_escape
+    assert_nil @http.escape nil
+    
+    assert_equal '%20', @http.escape(' ')
+  end
+
+  def test_normalize_uri
+    assert_equal 'http://example',  @http.normalize_uri('example')
+    assert_equal 'http://example',  @http.normalize_uri('http://example')
+    assert_equal 'https://example', @http.normalize_uri('https://example')
+  end
+
+  def test_proxy_from_env
+    ENV['HTTP_PROXY']      = 'proxy.example'
+    ENV['HTTP_PROXY_USER'] = 'johndoe'
+    ENV['HTTP_PROXY_PASS'] = 'muffins'
+
+    uri = @http.proxy_from_env
+
+    expected = URI.parse 'http://proxy.example'
+    expected.user     = 'johndoe'
+    expected.password = 'muffins'
+
+    assert_equal expected, uri
+  end
+
+  def test_proxy_from_env_lower
+    ENV['http_proxy']      = 'proxy.example'
+    ENV['http_proxy_user'] = 'johndoe'
+    ENV['http_proxy_pass'] = 'muffins'
+
+    uri = @http.proxy_from_env
+
+    expected = URI.parse 'http://proxy.example'
+    expected.user     = 'johndoe'
+    expected.password = 'muffins'
+
+    assert_equal expected, uri
+  end
+
+  def test_proxy_from_env_nil
+    uri = @http.proxy_from_env
+
+    assert_nil uri
+
+    ENV['HTTP_PROXY'] = ''
+
+    uri = @http.proxy_from_env
+
+    assert_nil uri
   end
 
   def test_reset

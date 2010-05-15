@@ -73,6 +73,11 @@ class Net::HTTP::Persistent
   attr_accessor :private_key
 
   ##
+  # The URL through which requests will be proxied
+
+  attr_reader :proxy_uri
+
+  ##
   # SSL verification callback.  Used when ca_file is set.
 
   attr_accessor :verify_callback
@@ -85,7 +90,31 @@ class Net::HTTP::Persistent
 
   attr_accessor :verify_mode
 
-  def initialize # :nodoc:
+  ##
+  # Creates a new Net::HTTP::Persistent.
+  #
+  # +proxy+ may be set to a URI::HTTP or :ENV to pick up proxy options from
+  # the environment.  See proxy_from_env for details.
+
+  def initialize proxy = nil
+    @proxy_uri = case proxy
+                 when :ENV      then proxy_from_env
+                 when URI::HTTP then proxy
+                 when nil       then # ignore
+                 else raise ArgumentError, 'proxy must be :ENV or a URI::HTTP'
+                 end
+
+    if @proxy_uri then
+      @proxy_args = [
+        @proxy_uri.host,
+        @proxy_uri.port,
+        @proxy_uri.user,
+        @proxy_uri.password,
+      ]
+
+      @proxy_connection_id = [nil, *@proxy_args].join ':'
+    end
+
     @debug_output = nil
     @headers      = {}
     @keep_alive   = 30
@@ -104,9 +133,15 @@ class Net::HTTP::Persistent
     Thread.current[:net_http_persistent_connections] ||= {}
     connections = Thread.current[:net_http_persistent_connections]
 
-    connection_id = [uri.host, uri.port].join ':'
+    net_http_args = [uri.host, uri.port]
+    connection_id = net_http_args.join ':'
 
-    connections[connection_id] ||= Net::HTTP.new uri.host, uri.port
+    if @proxy_uri then
+      connection_id << @proxy_connection_id
+      net_http_args.concat @proxy_args
+    end
+
+    connections[connection_id] ||= Net::HTTP.new(*net_http_args)
     connection = connections[connection_id]
 
     unless connection.started? then
@@ -131,6 +166,47 @@ class Net::HTTP::Persistent
       Thread.current[:net_http_persistent_requests][connection.object_id]
 
     "after #{requests} requests on #{connection.object_id}"
+  end
+
+  ##
+  # URI::escape wrapper
+
+  def escape str
+    URI.escape str if str
+  end
+
+  ##
+  # Adds "http://" to the String +uri+ if it is missing.
+
+  def normalize_uri uri
+    (uri =~ /^https?:/) ? uri : "http://#{uri}"
+  end
+
+  ##
+  # Creates a URI for an HTTP proxy server from ENV variables.
+  #
+  # If +HTTP_PROXY+ is set a proxy will be returned.
+  #
+  # If +HTTP_PROXY_USER+ or +HTTP_PROXY_PASS+ are set the URI is given the
+  # indicated user and password unless HTTP_PROXY contains either of these in
+  # the URI.
+  #
+  # For Windows users lowercase ENV variables are preferred over uppercase ENV
+  # variables.
+
+  def proxy_from_env
+    env_proxy = ENV['http_proxy'] || ENV['HTTP_PROXY']
+
+    return nil if env_proxy.nil? or env_proxy.empty?
+
+    uri = URI.parse normalize_uri env_proxy
+
+    unless uri.user or uri.password then
+      uri.user     = escape ENV['http_proxy_user'] || ENV['HTTP_PROXY_USER']
+      uri.password = escape ENV['http_proxy_pass'] || ENV['HTTP_PROXY_PASS']
+    end
+
+    uri
   end
 
   ##
