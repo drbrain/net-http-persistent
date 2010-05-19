@@ -77,6 +77,11 @@ class Net::HTTP::Persistent
   ##
   # The value sent in the Keep-Alive header.  Defaults to 30.  Not needed for
   # HTTP/1.1 servers.
+  #
+  # This may not work correctly for HTTP/1.0 servers
+  #
+  # This method may be removed in a future version as RFC 2616 does not
+  # require this header.
 
   attr_accessor :keep_alive
 
@@ -119,10 +124,17 @@ class Net::HTTP::Persistent
   #
   # Set +name+ to keep your connections apart from everybody else's.  Not
   # required currently, but highly recommended.  Your library name should be
-  # good enough.
+  # good enough.  This parameter will be required in a future version.
   #
   # +proxy+ may be set to a URI::HTTP or :ENV to pick up proxy options from
   # the environment.  See proxy_from_env for details.
+  #
+  # In order to use a URI for the proxy you'll need to do some extra work
+  # beyond URI.parse:
+  #
+  #   proxy = URI.parse 'http://proxy.example'
+  #   proxy.user     = 'AzureDiamond'
+  #   proxy.password = 'hunter2'
 
   def initialize name = nil, proxy = nil
     @name = name
@@ -211,6 +223,17 @@ class Net::HTTP::Persistent
   end
 
   ##
+  # Is +req+ idempotent according to RFC 2616?
+
+  def idempotent? req
+    case req
+    when Net::HTTP::Delete, Net::HTTP::Get, Net::HTTP::Head,
+         Net::HTTP::Options, Net::HTTP::Put, Net::HTTP::Trace then
+      true
+    end
+  end
+
+  ##
   # Adds "http://" to the String +uri+ if it is missing.
 
   def normalize_uri uri
@@ -267,6 +290,9 @@ class Net::HTTP::Persistent
   # against +uri+.
   #
   # +req+ must be a Net::HTTPRequest subclass (see Net::HTTP for a list).
+  #
+  # If there is an error and the request is idempontent according to RFC 2616
+  # it will be retried automatically.
 
   def request uri, req = nil
     Thread.current[@request_key] ||= Hash.new 0
@@ -294,7 +320,8 @@ class Net::HTTP::Persistent
 
       reset connection
 
-      raise Error, "too many bad responses #{message}" if bad_response
+      raise Error, "too many bad responses #{message}" if
+        bad_response or not idempotent? req
 
       bad_response = true
       retry
@@ -305,7 +332,8 @@ class Net::HTTP::Persistent
 
       reset connection
 
-      raise Error, "too many connection resets #{due_to} #{message}" if retried
+      raise Error, "too many connection resets #{due_to} #{message}" if
+        retried or not idempotent? req
 
       retried = true
       retry

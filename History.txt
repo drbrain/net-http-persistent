@@ -9,12 +9,15 @@
   * Net::HTTP::Persistent now suppresses "peer certificate won't be verified
     in this SSL session" warning.
 
+* Bug Fixes
+  * Net::HTTP::Persistent retries requests in accordance with RFC 2616.
+
 === 1.0.1 / 2010-05-05
 
 * Minor Enhancements
   * Added #debug_output
   * Now uses Hoe minitest plugin
-* Bug fixes
+* Bug Fixes
   * Tests pass on 1.9
 
 === 1.0.0 / 2010-05-04

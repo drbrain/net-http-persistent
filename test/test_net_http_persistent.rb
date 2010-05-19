@@ -168,6 +168,17 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal '%20', @http.escape(' ')
   end
 
+  def test_idempotent_eh
+    assert @http.idempotent? Net::HTTP::Delete.new '/'
+    assert @http.idempotent? Net::HTTP::Get.new '/'
+    assert @http.idempotent? Net::HTTP::Head.new '/'
+    assert @http.idempotent? Net::HTTP::Options.new '/'
+    assert @http.idempotent? Net::HTTP::Put.new '/'
+    assert @http.idempotent? Net::HTTP::Trace.new '/'
+
+    refute @http.idempotent? Net::HTTP::Post.new '/'
+  end
+
   def test_normalize_uri
     assert_equal 'http://example',  @http.normalize_uri('example')
     assert_equal 'http://example',  @http.normalize_uri('http://example')
@@ -303,12 +314,50 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_match %r%too many bad responses%, e.message
   end
 
+  def test_request_bad_response_unsafe
+    c = connection
+    def c.request(*a)
+      if instance_variable_defined? :@request then
+        raise 'POST must not be retried'
+      else
+        @request = true
+        raise Net::HTTPBadResponse
+      end
+    end
+
+    e = assert_raises Net::HTTP::Persistent::Error do
+      @http.request @uri, Net::HTTP::Post.new(@uri.path)
+    end
+
+    assert_equal 0, reqs[c.object_id]
+    assert_match %r%too many bad responses%, e.message
+  end
+
   def test_request_reset
     c = connection
     def c.request(*a) raise Errno::ECONNRESET end
 
     e = assert_raises Net::HTTP::Persistent::Error do
       @http.request @uri
+    end
+
+    assert_equal 0, reqs[c.object_id]
+    assert_match %r%too many connection resets%, e.message
+  end
+
+  def test_request_reset_unsafe
+    c = connection
+    def c.request(*a)
+      if instance_variable_defined? :@request then
+        raise 'POST must not be retried'
+      else
+        @request = true
+        raise Errno::ECONNRESET
+      end
+    end
+
+    e = assert_raises Net::HTTP::Persistent::Error do
+      @http.request @uri, Net::HTTP::Post.new(@uri.path)
     end
 
     assert_equal 0, reqs[c.object_id]
