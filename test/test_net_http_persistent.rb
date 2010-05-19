@@ -164,7 +164,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def test_escape
     assert_nil @http.escape nil
-    
+
     assert_equal '%20', @http.escape(' ')
   end
 
