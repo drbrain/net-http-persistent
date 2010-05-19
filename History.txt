@@ -3,6 +3,7 @@
 * Minor Enhancements
   * Net::HTTP#read_timeout is now supported
   * Net::HTTP#open_timeout is now supported
+  * Net::HTTP::Persistent#request now supports a block like Net::HTTP#request
 
 === 1.1 / 2010-05-18
 

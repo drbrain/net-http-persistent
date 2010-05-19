@@ -32,7 +32,13 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     c = Object.new
     # Net::HTTP
     def c.finish; @finished = true end
-    def c.request(req) @req = req; :response end
+    def c.request(req)
+      @req = req
+      r = Object.new
+      def r.read_body() :read_body end
+      yield r if block_given?
+      :response
+    end
     def c.reset; @reset = true end
     def c.start; end
 
@@ -336,6 +342,29 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     assert_equal 0, reqs[c.object_id]
     assert_match %r%too many bad responses%, e.message
+  end
+
+  def test_request_block
+    @http.headers['user-agent'] = 'test ua'
+    c = connection
+    body = nil
+
+    res = @http.request @uri do |r|
+      body = r.read_body
+    end
+
+    req = c.req
+
+    assert_equal :response, res
+    refute_nil body
+
+    assert_kind_of Net::HTTP::Get, req
+    assert_equal '/path',      req.path
+    assert_equal 'keep-alive', req['connection']
+    assert_equal '30',         req['keep-alive']
+    assert_match %r%test ua%,  req['user-agent']
+
+    assert_equal 1, reqs[c.object_id]
   end
 
   def test_request_reset

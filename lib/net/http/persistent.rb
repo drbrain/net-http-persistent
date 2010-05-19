@@ -303,12 +303,15 @@ class Net::HTTP::Persistent
   # Makes a request on +uri+.  If +req+ is nil a Net::HTTP::Get is performed
   # against +uri+.
   #
+  # If a block is passed #request behaves like Net::HTTP#request (the body of
+  # the response will not have been read).
+  #
   # +req+ must be a Net::HTTPRequest subclass (see Net::HTTP for a list).
   #
   # If there is an error and the request is idempontent according to RFC 2616
   # it will be retried automatically.
 
-  def request uri, req = nil
+  def request uri, req = nil, &block
     Thread.current[@request_key] ||= Hash.new 0
     retried      = false
     bad_response = false
@@ -327,7 +330,7 @@ class Net::HTTP::Persistent
 
     begin
       count = Thread.current[@request_key][connection_id] += 1
-      response = connection.request req
+      response = connection.request req, &block
 
     rescue Net::HTTPBadResponse => e
       message = error_message connection
