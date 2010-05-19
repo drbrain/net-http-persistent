@@ -92,6 +92,11 @@ class Net::HTTP::Persistent
   attr_reader :name
 
   ##
+  # Seconds to wait until a connection is opened.  See Net::HTTP#open_timeout
+
+  attr_accessor :open_timeout
+
+  ##
   # This client's SSL private key
 
   attr_accessor :private_key
@@ -100,6 +105,11 @@ class Net::HTTP::Persistent
   # The URL through which requests will be proxied
 
   attr_reader :proxy_uri
+
+  ##
+  # Seconds to wait until reading one block.  See Net::HTTP#read_timeout
+
+  attr_accessor :read_timeout
 
   ##
   # Where this instance's request counts live in the thread local variables
@@ -160,6 +170,8 @@ class Net::HTTP::Persistent
     @debug_output = nil
     @headers      = {}
     @keep_alive   = 30
+    @open_timeout = nil
+    @read_timeout = nil
 
     key = ['net_http_persistent', name, 'connections'].compact.join '_'
     @connection_key = key.intern
@@ -193,6 +205,8 @@ class Net::HTTP::Persistent
 
     unless connection.started? then
       connection.set_debug_output @debug_output if @debug_output
+      connection.open_timeout = @open_timeout if @open_timeout
+      connection.read_timeout = @read_timeout if @read_timeout
 
       ssl connection if uri.scheme == 'https'
 

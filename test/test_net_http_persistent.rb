@@ -78,10 +78,15 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_connection_for
+    @http.open_timeout = 123
+    @http.read_timeout = 321
     c = @http.connection_for @uri
 
     assert c.started?
     refute c.proxy?
+
+    assert_equal 123, c.open_timeout
+    assert_equal 321, c.read_timeout
 
     assert_includes conns.keys, 'example.com:80'
     assert_same c, conns['example.com:80']
