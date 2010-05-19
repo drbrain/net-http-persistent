@@ -12,6 +12,13 @@ require 'uri'
 # Multiple Net::HTTP::Persistent objects will share the same set of
 # connections.
 #
+# For each thread you start a new connection will be created.  A
+# Net::HTTP::Persistent connection will not be shared across threads.
+#
+# You can shut down the HTTP connections when done by calling #shutdown.  You
+# should name your Net::HTTP::Persistent object if you intend to call this
+# method.
+#
 # Example:
 #
 #   uri = URI.parse 'http://example.com/awesome/web/service'
@@ -68,7 +75,8 @@ class Net::HTTP::Persistent
   attr_reader :headers
 
   ##
-  # The value sent in the Keep-Alive header.  Defaults to 30 seconds
+  # The value sent in the Keep-Alive header.  Defaults to 30.  Not needed for
+  # HTTP/1.1 servers.
 
   attr_accessor :keep_alive
 
