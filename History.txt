@@ -1,3 +1,8 @@
+=== 1.2.1 / 2010-05-25
+
+* Bug Fixes
+  * Don't alter Net::BufferedIO#rbuf_fill on 1.9+
+
 === 1.2 / 2010-05-20
 
 * Minor Enhancements
