@@ -123,6 +123,21 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_same c, conns['example.com:80']
   end
 
+  def test_connection_for_host_down
+    cached = Object.new
+    def cached.address; 'example.com' end
+    def cached.port; 80 end
+    def cached.start; raise Errno::EHOSTDOWN end
+    def cached.started?; false end
+    conns['example.com:80'] = cached
+
+    e = assert_raises Net::HTTP::Persistent::Error do
+      @http.connection_for @uri
+    end
+
+    assert_match %r%host down%, e.message
+  end
+
   def test_connection_for_name
     http = Net::HTTP::Persistent.new 'name'
     uri = URI.parse 'http://example/'
@@ -177,6 +192,35 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_nil @http.escape nil
 
     assert_equal '%20', @http.escape(' ')
+  end
+
+  def test_finish
+    c = Object.new
+    def c.finish; @finished = true end
+    def c.finished?; @finished end
+    def c.start; @started = true end
+    def c.started?; @started end
+    reqs[c.object_id] = 5
+
+    @http.finish c
+
+    refute c.started?
+    assert c.finished?
+    assert_nil reqs[c.object_id]
+  end
+
+  def test_finish_io_error
+    c = Object.new
+    def c.finish; @finished = true; raise IOError end
+    def c.finished?; @finished end
+    def c.start; @started = true end
+    def c.started?; @started end
+    reqs[c.object_id] = 5
+
+    @http.finish c
+
+    refute c.started?
+    assert c.finished?
   end
 
   def test_idempotent_eh

@@ -36,7 +36,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent use are using
 
-  VERSION = '1.2.1'
+  VERSION = '1.2.2'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -216,6 +216,8 @@ class Net::HTTP::Persistent
     connection
   rescue Errno::ECONNREFUSED
     raise Error, "connection refused: #{connection.address}:#{connection.port}"
+  rescue Errno::EHOSTDOWN
+    raise Error, "host down: #{connection.address}:#{connection.port}"
   end
 
   ##
@@ -234,6 +236,16 @@ class Net::HTTP::Persistent
 
   def escape str
     URI.escape str if str
+  end
+
+  ##
+  # Finishes the Net::HTTP +connection+
+
+  def finish connection
+    Thread.current[@request_key].delete connection.object_id
+
+    connection.finish
+  rescue IOError
   end
 
   ##
@@ -287,10 +299,7 @@ class Net::HTTP::Persistent
   def reset connection
     Thread.current[@request_key].delete connection.object_id
 
-    begin
-      connection.finish
-    rescue IOError
-    end
+    finish connection
 
     connection.start
   rescue Errno::ECONNREFUSED

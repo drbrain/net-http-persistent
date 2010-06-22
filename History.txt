@@ -1,3 +1,10 @@
+=== 1.2.2 / 2010-06-22
+
+* Bug Fixes
+  * #request only finishes a connection instead of restarting it.  This helps
+    prevents errors on non-idempotent HTTP requests after errors.
+  * #connection_for handles EHOSTDOWN like #reset
+
 === 1.2.1 / 2010-05-25
 
 * Bug Fixes
