@@ -1,3 +1,8 @@
+=== 1.2.3 / 2010-06-29
+
+* Bug Fixes
+  * Fix example code (pointed out by Alex Stahl)
+
 === 1.2.2 / 2010-06-22
 
 * Bug Fixes

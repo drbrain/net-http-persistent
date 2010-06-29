@@ -22,12 +22,12 @@ require 'uri'
 # Example:
 #
 #   uri = URI.parse 'http://example.com/awesome/web/service'
-#   http = Net::HTTP::Persistent
+#   http = Net::HTTP::Persistent.new
 #   stuff = http.request uri # performs a GET
 #
 #   # perform a POST
 #   post_uri = uri + 'create'
-#   post = Net::HTTP::Post.new uri.path
+#   post = Net::HTTP::Post.new post_uri.path
 #   post.set_form_data 'some' => 'cool data'
 #   http.request post_uri, post # URI is always required
 
@@ -36,7 +36,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent use are using
 
-  VERSION = '1.2.2'
+  VERSION = '1.2.3'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
