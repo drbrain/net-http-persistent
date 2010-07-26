@@ -36,7 +36,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent use are using
 
-  VERSION = '1.2.3'
+  VERSION = '1.2.4'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
