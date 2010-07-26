@@ -344,7 +344,7 @@ class Net::HTTP::Persistent
     rescue Net::HTTPBadResponse => e
       message = error_message connection
 
-      reset connection
+      finish connection
 
       raise Error, "too many bad responses #{message}" if
         bad_response or not idempotent? req
@@ -356,7 +356,7 @@ class Net::HTTP::Persistent
       due_to = "(due to #{e.message} - #{e.class})"
       message = error_message connection
 
-      reset connection
+      finish connection
 
       raise Error, "too many connection resets #{due_to} #{message}" if
         retried or not idempotent? req

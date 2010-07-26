@@ -369,6 +369,22 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_match %r%too many bad responses%, e.message
   end
 
+  def test_request_reset_retry
+    c = connection
+    def c.request(*a)
+      def self.request(*a)
+        :response
+      end
+
+      raise Net::HTTPBadResponse
+    end
+
+    res = @http.request @uri
+
+    assert_equal :response, res
+    assert c.finished?
+  end
+
   def test_request_bad_response_unsafe
     c = connection
     def c.request(*a)
@@ -421,6 +437,22 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     assert_equal 0, reqs[c.object_id]
     assert_match %r%too many connection resets%, e.message
+  end
+
+  def test_request_reset_retry
+    c = connection
+    def c.request(*a)
+      def self.request(*a)
+        :response
+      end
+
+      raise Errno::ECONNRESET
+    end
+
+    res = @http.request @uri
+
+    assert_equal :response, res
+    assert c.finished?
   end
 
   def test_request_reset_unsafe

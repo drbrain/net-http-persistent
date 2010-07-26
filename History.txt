@@ -1,3 +1,9 @@
+=== 1.2.4 / 2010-07-26
+
+* Bug Fixes
+  * Actually have #request only finish a connection.  Somehow this got
+    missed.
+
 === 1.2.3 / 2010-06-29
 
 * Bug Fixes
