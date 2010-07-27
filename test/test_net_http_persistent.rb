@@ -369,7 +369,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_match %r%too many bad responses%, e.message
   end
 
-  def test_request_reset_retry
+  def test_request_bad_response_retry
     c = connection
     def c.request(*a)
       def self.request(*a)

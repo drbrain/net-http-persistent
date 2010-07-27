@@ -1,3 +1,8 @@
+=== 1.2.5 / 2010-07-27
+
+* Bug Fixes
+  * Fix duplicated test name.  Noted by Peter Higgins.
+
 === 1.2.4 / 2010-07-26
 
 * Bug Fixes
