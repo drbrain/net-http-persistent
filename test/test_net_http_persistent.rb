@@ -505,6 +505,13 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     refute_same rs, reqs
   end
 
+  def test_shutdown_no_connections
+    @http.shutdown
+
+    assert_nil Thread.current[@http.connection_key]
+    assert_nil Thread.current[@http.request_key]
+  end
+
   def test_ssl
     @http.verify_callback = :callback
     c = Net::HTTP.new 'localhost', 80

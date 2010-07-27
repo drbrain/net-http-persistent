@@ -2,6 +2,7 @@
 
 * Bug Fixes
   * Fix duplicated test name.  Noted by Peter Higgins.
+  * #shutdown now works even when no connections were made.
 
 === 1.2.4 / 2010-07-26
 

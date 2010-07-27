@@ -36,7 +36,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent use are using
 
-  VERSION = '1.2.4'
+  VERSION = '1.2.5'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -375,9 +375,11 @@ class Net::HTTP::Persistent
   # this in each thread.
 
   def shutdown
-    Thread.current[@connection_key].each do |_, connection|
+    connections = Thread.current[@connection_key]
+
+    connections.each do |_, connection|
       connection.finish
-    end
+    end if connections
 
     Thread.current[@connection_key] = nil
     Thread.current[@request_key]    = nil
