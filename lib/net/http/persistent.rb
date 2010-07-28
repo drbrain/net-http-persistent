@@ -75,6 +75,12 @@ class Net::HTTP::Persistent
   attr_reader :headers
 
   ##
+  # Maps host:port to an HTTP version.  This allows us to enable version
+  # specific features.
+
+  attr_reader :http_versions
+
+  ##
   # The value sent in the Keep-Alive header.  Defaults to 30.  Not needed for
   # HTTP/1.1 servers.
   #
@@ -167,11 +173,12 @@ class Net::HTTP::Persistent
       @proxy_connection_id = [nil, *@proxy_args].join ':'
     end
 
-    @debug_output = nil
-    @headers      = {}
-    @keep_alive   = 30
-    @open_timeout = nil
-    @read_timeout = nil
+    @debug_output  = nil
+    @headers       = {}
+    @http_versions = {}
+    @keep_alive    = 30
+    @open_timeout  = nil
+    @read_timeout  = nil
 
     key = ['net_http_persistent', name, 'connections'].compact.join '_'
     @connection_key = key.intern
@@ -246,6 +253,13 @@ class Net::HTTP::Persistent
 
     connection.finish
   rescue IOError
+  end
+
+  ##
+  # Returns the HTTP protocol version for +uri+
+
+  def http_version uri
+    @http_versions["#{uri.host}:#{uri.port}"]
   end
 
   ##
@@ -364,6 +378,8 @@ class Net::HTTP::Persistent
       retried = true
       retry
     end
+
+    @http_versions["#{uri.host}:#{uri.port}"] ||= response.http_version
 
     response
   end

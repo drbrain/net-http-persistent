@@ -34,10 +34,11 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     def c.finish; @finished = true end
     def c.request(req)
       @req = req
-      r = Object.new
+      r = Net::HTTPResponse.allocate
+      def r.http_version() '1.1' end
       def r.read_body() :read_body end
       yield r if block_given?
-      :response
+      r
     end
     def c.reset; @reset = true end
     def c.start; end
@@ -223,6 +224,16 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert c.finished?
   end
 
+  def test_http_version
+    assert_nil @http.http_version @uri
+
+    c = connection
+
+    @http.request @uri
+
+    assert_equal '1.1', @http.http_version(@uri)
+  end
+
   def test_idempotent_eh
     assert @http.idempotent? Net::HTTP::Delete.new '/'
     assert @http.idempotent? Net::HTTP::Get.new '/'
@@ -346,7 +357,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     res = @http.request @uri
     req = c.req
 
-    assert_equal :response, res
+    assert_kind_of Net::HTTPResponse, res
 
     assert_kind_of Net::HTTP::Get, req
     assert_equal '/path',      req.path
@@ -373,7 +384,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     c = connection
     def c.request(*a)
       def self.request(*a)
-        :response
+        Net::HTTPResponse.allocate
       end
 
       raise Net::HTTPBadResponse
@@ -381,7 +392,6 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     res = @http.request @uri
 
-    assert_equal :response, res
     assert c.finished?
   end
 
@@ -415,7 +425,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     req = c.req
 
-    assert_equal :response, res
+    assert_kind_of Net::HTTPResponse, res
     refute_nil body
 
     assert_kind_of Net::HTTP::Get, req
@@ -443,7 +453,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     c = connection
     def c.request(*a)
       def self.request(*a)
-        :response
+        Net::HTTPResponse.allocate
       end
 
       raise Errno::ECONNRESET
@@ -451,7 +461,6 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     res = @http.request @uri
 
-    assert_equal :response, res
     assert c.finished?
   end
 
@@ -481,8 +490,6 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     res = @http.request @uri, post
     req = c.req
-
-    assert_equal :response, res
 
     assert_same post, req
   end
