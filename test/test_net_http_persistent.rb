@@ -512,6 +512,18 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     refute_same rs, reqs
   end
 
+  def test_shutdown_not_started
+    c = Object.new
+    def c.finish() raise IOError end
+
+    conns["#{@uri.host}:#{@uri.port}"] = c
+
+    @http.shutdown
+
+    assert_nil Thread.current[@http.connection_key]
+    assert_nil Thread.current[@http.request_key]
+  end
+
   def test_shutdown_no_connections
     @http.shutdown
 

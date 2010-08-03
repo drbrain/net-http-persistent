@@ -36,7 +36,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent use are using
 
-  VERSION = '1.2.5'
+  VERSION = '1.3'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -394,7 +394,10 @@ class Net::HTTP::Persistent
     connections = Thread.current[@connection_key]
 
     connections.each do |_, connection|
-      connection.finish
+      begin
+        connection.finish
+      rescue IOError
+      end
     end if connections
 
     Thread.current[@connection_key] = nil

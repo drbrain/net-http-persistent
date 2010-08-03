@@ -1,7 +1,9 @@
-=== 1.3 / 2010-07-27
+=== 1.3 / 2010-??
 
 * Minor Enhancements
   * HTTP versions are now recorded.
+* Bug Fixes
+  * #shutdown no longer fails when an unstarted HTTP connection is shut down.
 
 === 1.2.5 / 2010-07-27
 
