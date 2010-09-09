@@ -4,6 +4,8 @@ require 'openssl'
 require 'stringio'
 
 class Net::HTTP
+  alias orig_connect connect
+
   def connect
   end
 end
@@ -28,10 +30,28 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     end
   end
 
-  def connection
+  def basic_connection
     c = Object.new
-    # Net::HTTP
+    c.instance_variable_set :@finished, false
+    c.instance_variable_set :@reset,    false
+    c.instance_variable_set :@started,  false
+
     def c.finish; @finished = true end
+    def c.reset; @reset = true end
+    def c.start; end
+
+    def c.req() @req; end
+    def c.reset?; @reset end
+    def c.started?; true end
+    def c.finished?; @finished end
+
+    conns["#{@uri.host}:#{@uri.port}"] = c
+    c
+  end
+
+  def connection
+    c = basic_connection
+
     def c.request(req)
       @req = req
       r = Net::HTTPResponse.allocate
@@ -40,15 +60,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
       yield r if block_given?
       r
     end
-    def c.reset; @reset = true end
-    def c.start; end
 
-    # util
-    def c.req() @req; end
-    def c.reset?; @reset end
-    def c.started?; true end
-    def c.finished?; @finished end
-    conns["#{@uri.host}:#{@uri.port}"] = c
     c
   end
 
@@ -192,11 +204,12 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   def test_escape
     assert_nil @http.escape nil
 
-    assert_equal '%20', @http.escape(' ')
+    assert_equal '+%3F', @http.escape(' ?')
   end
 
   def test_finish
     c = Object.new
+    c.instance_variable_set :@started, false
     def c.finish; @finished = true end
     def c.finished?; @finished end
     def c.start; @started = true end
@@ -212,6 +225,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def test_finish_io_error
     c = Object.new
+    c.instance_variable_set :@started, false
     def c.finish; @finished = true; raise IOError end
     def c.finished?; @finished end
     def c.start; @started = true end
@@ -227,7 +241,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   def test_http_version
     assert_nil @http.http_version @uri
 
-    c = connection
+    connection
 
     @http.request @uri
 
@@ -369,7 +383,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_request_bad_response
-    c = connection
+    c = basic_connection
     def c.request(*a) raise Net::HTTPBadResponse end
 
     e = assert_raises Net::HTTP::Persistent::Error do
@@ -381,22 +395,23 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_request_bad_response_retry
-    c = connection
+    c = basic_connection
     def c.request(*a)
-      def self.request(*a)
+      if defined? @called then
         Net::HTTPResponse.allocate
+      else
+        @called = true
+        raise Net::HTTPBadResponse
       end
-
-      raise Net::HTTPBadResponse
     end
 
-    res = @http.request @uri
+    @http.request @uri
 
     assert c.finished?
   end
 
   def test_request_bad_response_unsafe
-    c = connection
+    c = basic_connection
     def c.request(*a)
       if instance_variable_defined? :@request then
         raise 'POST must not be retried'
@@ -438,7 +453,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_request_reset
-    c = connection
+    c = basic_connection
     def c.request(*a) raise Errno::ECONNRESET end
 
     e = assert_raises Net::HTTP::Persistent::Error do
@@ -450,22 +465,23 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_request_reset_retry
-    c = connection
+    c = basic_connection
     def c.request(*a)
-      def self.request(*a)
+      if defined? @called then
         Net::HTTPResponse.allocate
+      else
+        @called = true
+        raise Errno::ECONNRESET
       end
-
-      raise Errno::ECONNRESET
     end
 
-    res = @http.request @uri
+    @http.request @uri
 
     assert c.finished?
   end
 
   def test_request_reset_unsafe
-    c = connection
+    c = basic_connection
     def c.request(*a)
       if instance_variable_defined? :@request then
         raise 'POST must not be retried'
@@ -488,7 +504,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     post = Net::HTTP::Post.new @uri.path
 
-    res = @http.request @uri, post
+    @http.request @uri, post
     req = c.req
 
     assert_same post, req

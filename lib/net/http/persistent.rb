@@ -1,6 +1,7 @@
 require 'net/http'
 require 'net/http/faster'
 require 'uri'
+require 'cgi' # for escaping
 
 ##
 # Persistent connections for Net::HTTP
@@ -242,7 +243,7 @@ class Net::HTTP::Persistent
   # URI::escape wrapper
 
   def escape str
-    URI.escape str if str
+    CGI.escape str if str
   end
 
   ##
@@ -352,7 +353,7 @@ class Net::HTTP::Persistent
     connection_id = connection.object_id
 
     begin
-      count = Thread.current[@request_key][connection_id] += 1
+      Thread.current[@request_key][connection_id] += 1
       response = connection.request req, &block
 
     rescue Net::HTTPBadResponse => e
