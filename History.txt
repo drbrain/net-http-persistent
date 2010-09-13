@@ -1,3 +1,9 @@
+=== 1.3.1 / 2010-09-13
+
+* Bug Fixes
+  * #connection_for no longer tries to ssl-enable an existing connection.
+    Patch by Joseph West.
+
 === 1.3 / 2010-09-08
 
 * Minor Enhancements
