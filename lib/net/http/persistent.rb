@@ -210,15 +210,18 @@ class Net::HTTP::Persistent
       net_http_args.concat @proxy_args
     end
 
-    connections[connection_id] ||= Net::HTTP.new(*net_http_args)
-    connection = connections[connection_id]
+    if connections[connection_id]
+      connection = connections[connection_id]
+    else
+      connections[connection_id] = Net::HTTP.new(*net_http_args)
+      connection = connections[connection_id]
+      ssl connection if uri.scheme == 'https'
+    end
 
     unless connection.started? then
       connection.set_debug_output @debug_output if @debug_output
       connection.open_timeout = @open_timeout if @open_timeout
       connection.read_timeout = @read_timeout if @read_timeout
-
-      ssl connection if uri.scheme == 'https'
 
       connection.start
     end
