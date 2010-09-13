@@ -7,6 +7,13 @@ class Net::HTTP
   alias orig_connect connect
 
   def connect
+    return unless use_ssl?
+
+    io = open '/dev/null'
+
+    @ssl_context ||= OpenSSL::SSL::SSLContext.new
+    @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER
+    s = OpenSSL::SSL::SSLSocket.new io, @ssl_context
   end
 end
 
@@ -134,6 +141,24 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     assert_includes conns.keys, 'example.com:80'
     assert_same c, conns['example.com:80']
+  end
+
+  def test_connection_for_finished_ssl
+    uri = URI.parse 'https://example.com/path'
+    c = @http.connection_for uri
+
+    assert c.started?
+    assert c.use_ssl?
+
+    @http.finish c
+
+    refute c.started?
+
+    @http.connection_for uri
+
+    assert c.started?
+
+    flunk
   end
 
   def test_connection_for_host_down

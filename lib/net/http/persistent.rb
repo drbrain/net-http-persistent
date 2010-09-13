@@ -198,6 +198,8 @@ class Net::HTTP::Persistent
 
   def connection_for uri
     Thread.current[@connection_key] ||= {}
+    Thread.current[@request_key]    ||= Hash.new 0
+
     connections = Thread.current[@connection_key]
 
     net_http_args = [uri.host, uri.port]
@@ -336,7 +338,6 @@ class Net::HTTP::Persistent
   # it will be retried automatically.
 
   def request uri, req = nil, &block
-    Thread.current[@request_key] ||= Hash.new 0
     retried      = false
     bad_response = false
 
