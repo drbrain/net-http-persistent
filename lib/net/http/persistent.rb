@@ -210,9 +210,7 @@ class Net::HTTP::Persistent
       net_http_args.concat @proxy_args
     end
 
-    if connections[connection_id]
-      connection = connections[connection_id]
-    else
+    unless connection = connections[connection_id] then
       connections[connection_id] = Net::HTTP.new(*net_http_args)
       connection = connections[connection_id]
       ssl connection if uri.scheme == 'https'

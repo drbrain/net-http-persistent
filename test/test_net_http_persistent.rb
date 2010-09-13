@@ -12,8 +12,13 @@ class Net::HTTP
     io = open '/dev/null'
 
     @ssl_context ||= OpenSSL::SSL::SSLContext.new
-    @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER
+
+    @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER unless
+      @ssl_context.verify_mode
+
     s = OpenSSL::SSL::SSLSocket.new io, @ssl_context
+
+    @socket = Net::BufferedIO.new s
   end
 end
 
@@ -154,11 +159,9 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     refute c.started?
 
-    @http.connection_for uri
+    c2 = @http.connection_for uri
 
-    assert c.started?
-
-    flunk
+    assert c2.started?
   end
 
   def test_connection_for_host_down
