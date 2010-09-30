@@ -388,13 +388,15 @@ class Net::HTTP::Persistent
   end
 
   ##
-  # Shuts down all connections in this thread.
+  # Shuts down all connections in a thread.
+  # 
+  # Uses the current thread by default.
   #
   # If you've used Net::HTTP::Persistent across multiple threads you must call
-  # this in each thread.
+  # this for each thread.
 
-  def shutdown
-    connections = Thread.current[@connection_key]
+  def shutdown thread = Thread.current
+    connections = thread[@connection_key]
 
     connections.each do |_, connection|
       begin
@@ -403,8 +405,15 @@ class Net::HTTP::Persistent
       end
     end if connections
 
-    Thread.current[@connection_key] = nil
-    Thread.current[@request_key]    = nil
+    thread[@connection_key] = nil
+    thread[@request_key]    = nil
+  end
+
+  ##
+  # Shuts down all connections in all threads
+  
+  def shutdown_in_all_threads
+    Thread.list.each { |t| shutdown t }
   end
 
   ##

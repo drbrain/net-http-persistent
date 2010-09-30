@@ -575,6 +575,51 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_nil Thread.current[@http.request_key]
   end
 
+  def test_shutdown_for_another_thread
+    c = connection
+
+    t = Thread.new do
+      @http = Net::HTTP::Persistent.new
+      Thread.current[:threaded_conn] = connection
+      sleep 1000
+    end
+
+    @http.shutdown t
+
+    assert t[:threaded_conn].finished?
+    refute c.finished?
+
+    t.kill # cleanup
+  end
+
+  def test_shutdown_in_all_threads
+    require 'ruby-debug'
+
+    c = connection
+
+    t1 = Thread.new do
+      http = Net::HTTP::Persistent.new
+      Thread.current[:threaded_conn] = connection
+      sleep 1000
+    end
+
+    t2 = Thread.new do
+      http = Net::HTTP::Persistent.new
+      Thread.current[:threaded_conn] = connection
+      sleep 1000
+    end
+
+    @http.shutdown_in_all_threads
+
+    assert c.finished?
+    assert t1[:threaded_conn].finished?
+    assert t2[:threaded_conn].finished?
+
+    # cleanup
+    t1.kill
+    t2.kill
+  end
+
   def test_ssl
     @http.verify_callback = :callback
     c = Net::HTTP.new 'localhost', 80
