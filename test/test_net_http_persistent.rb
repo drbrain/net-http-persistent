@@ -575,49 +575,56 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_nil Thread.current[@http.request_key]
   end
 
-  def test_shutdown_for_another_thread
-    c = connection
-
+  def test_shutdown_thread
     t = Thread.new do
-      @http = Net::HTTP::Persistent.new
-      Thread.current[:threaded_conn] = connection
-      sleep 1000
+      c = connection
+      conns
+      reqs
+
+      Thread.stop
+
+      c
     end
+
+    Thread.pass until t.status == 'sleep'
+
+    c = connection
 
     @http.shutdown t
 
-    assert t[:threaded_conn].finished?
     refute c.finished?
 
-    t.kill # cleanup
+    t.run
+    assert t.value.finished?
+    assert_nil t[@http.connection_key]
+    assert_nil t[@http.request_key]
   end
 
   def test_shutdown_in_all_threads
-    require 'ruby-debug'
+    t = Thread.new do
+      c = connection
+      conns
+      reqs
+
+      Thread.stop
+
+      c
+    end
+
+    Thread.pass until t.status == 'sleep'
 
     c = connection
 
-    t1 = Thread.new do
-      http = Net::HTTP::Persistent.new
-      Thread.current[:threaded_conn] = connection
-      sleep 1000
-    end
-
-    t2 = Thread.new do
-      http = Net::HTTP::Persistent.new
-      Thread.current[:threaded_conn] = connection
-      sleep 1000
-    end
-
-    @http.shutdown_in_all_threads
+    assert_nil @http.shutdown_in_all_threads
 
     assert c.finished?
-    assert t1[:threaded_conn].finished?
-    assert t2[:threaded_conn].finished?
+    assert_nil Thread.current[@http.connection_key]
+    assert_nil Thread.current[@http.request_key]
 
-    # cleanup
-    t1.kill
-    t2.kill
+    t.run
+    assert t.value.finished?
+    assert_nil t[@http.connection_key]
+    assert_nil t[@http.request_key]
   end
 
   def test_ssl

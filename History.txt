@@ -1,3 +1,9 @@
+=== 1.4 / 2010-09-29
+
+* Minor Enhancements
+  * Added the very dangerous #shutdown_in_all_threads.  IT IS DANGEROUS!.
+    Patch by Torsten Schönebaum.
+
 === 1.3.1 / 2010-09-13
 
 * Bug Fixes
