@@ -1,3 +1,9 @@
+=== 1.4.1 / 2010-10-12
+
+* Bug Fixes
+  * Don't finish the connection when we're retrying, reset it.  Patch by James
+    Tucker.
+
 === 1.4 / 2010-09-29
 
 * Minor Enhancements
