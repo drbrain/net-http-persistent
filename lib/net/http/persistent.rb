@@ -370,13 +370,17 @@ class Net::HTTP::Persistent
       retry
     rescue IOError, EOFError, Timeout::Error,
            Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE => e
-      due_to = "(due to #{e.message} - #{e.class})"
-      message = error_message connection
 
-      finish connection
+      if retried or not idempotent? req
+        due_to = "(due to #{e.message} - #{e.class})"
+        message = error_message connection
 
-      raise Error, "too many connection resets #{due_to} #{message}" if
-        retried or not idempotent? req
+        finish connection
+
+        raise Error, "too many connection resets #{due_to} #{message}"
+      end
+
+      reset connection
 
       retried = true
       retry
