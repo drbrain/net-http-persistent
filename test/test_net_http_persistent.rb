@@ -333,12 +333,14 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def test_reset
     c = basic_connection
+    c.start
     reqs[c.object_id] = 5
 
     @http.reset c
 
     assert c.started?
     assert c.finished?
+    assert c.reset?
     assert_nil reqs[c.object_id]
   end
 
