@@ -491,6 +491,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     @http.request @uri
 
+    assert c.reset?
     assert c.finished?
   end
 
