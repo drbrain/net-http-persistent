@@ -42,21 +42,32 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     end
   end
 
+  class BasicConnection
+    attr_accessor :started, :finished, :address, :port
+    attr_reader :req
+    def initialize
+      @started, @finished = 0, 0
+      @address, @port = 'example.com', 80
+    end
+    def finish
+      @finished += 1
+    end
+    def start
+      @started += 1
+    end
+    def reset?
+      @started == @finished + 1
+    end
+    def started?
+      @started >= 1
+    end
+    def finished?
+      @finished >= 1
+    end
+  end
+
   def basic_connection
-    c = Object.new
-    c.instance_variable_set :@finished, false
-    c.instance_variable_set :@reset,    false
-    c.instance_variable_set :@started,  false
-
-    def c.finish; @finished = true end
-    def c.reset; @reset = true end
-    def c.start; end
-
-    def c.req() @req; end
-    def c.reset?; @reset end
-    def c.started?; true end
-    def c.finished?; @finished end
-
+    c = BasicConnection.new
     conns["#{@uri.host}:#{@uri.port}"] = c
     c
   end
@@ -124,8 +135,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_connection_for_cached
-    cached = Object.new
-    def cached.started?; true end
+    cached = basic_connection
+    cached.start
     conns['example.com:80'] = cached
 
     c = @http.connection_for @uri
@@ -165,9 +176,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_connection_for_host_down
-    cached = Object.new
-    def cached.address; 'example.com' end
-    def cached.port; 80 end
+    cached = basic_connection
     def cached.start; raise Errno::EHOSTDOWN end
     def cached.started?; false end
     conns['example.com:80'] = cached
@@ -208,9 +217,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_connection_for_refused
-    cached = Object.new
-    def cached.address; 'example.com' end
-    def cached.port; 80 end
+    cached = basic_connection
     def cached.start; raise Errno::ECONNREFUSED end
     def cached.started?; false end
     conns['example.com:80'] = cached
@@ -223,7 +230,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_error_message
-    c = Object.new
+    c = basic_connection
     reqs[c.object_id] = 5
 
     assert_equal "after 5 requests on #{c.object_id}", @http.error_message(c)
@@ -236,12 +243,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_finish
-    c = Object.new
-    c.instance_variable_set :@started, false
-    def c.finish; @finished = true end
-    def c.finished?; @finished end
-    def c.start; @started = true end
-    def c.started?; @started end
+    c = basic_connection
     reqs[c.object_id] = 5
 
     @http.finish c
@@ -252,12 +254,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_finish_io_error
-    c = Object.new
-    c.instance_variable_set :@started, false
-    def c.finish; @finished = true; raise IOError end
-    def c.finished?; @finished end
-    def c.start; @started = true end
-    def c.started?; @started end
+    c = basic_connection
+    def c.finish; @finished += 1; raise IOError end
     reqs[c.object_id] = 5
 
     @http.finish c
@@ -334,11 +332,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_reset
-    c = Object.new
-    def c.finish; @finished = true end
-    def c.finished?; @finished end
-    def c.start; @started = true end
-    def c.started?; @started end
+    c = basic_connection
     reqs[c.object_id] = 5
 
     @http.reset c
@@ -349,11 +343,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_reset_io_error
-    c = Object.new
-    def c.finish; @finished = true; raise IOError end
-    def c.finished?; @finished end
-    def c.start; @started = true end
-    def c.started?; @started end
+    c = basic_connection
     reqs[c.object_id] = 5
 
     @http.reset c
@@ -363,10 +353,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_reset_host_down
-    c = Object.new
-    def c.address; 'example.com' end
-    def c.finish; end
-    def c.port; 80 end
+    c = basic_connection
     def c.start; raise Errno::EHOSTDOWN end
     reqs[c.object_id] = 5
 
@@ -378,10 +365,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_reset_refused
-    c = Object.new
-    def c.address; 'example.com' end
-    def c.finish; end
-    def c.port; 80 end
+    c = basic_connection
     def c.start; raise Errno::ECONNREFUSED end
     reqs[c.object_id] = 5
 
@@ -557,7 +541,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_shutdown_not_started
-    c = Object.new
+    c = basic_connection
     def c.finish() raise IOError end
 
     conns["#{@uri.host}:#{@uri.port}"] = c
