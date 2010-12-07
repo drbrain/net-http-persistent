@@ -1,3 +1,9 @@
+=== 1.5 / ??
+
+* Minor Enhancements
+  * Set TCP_NODELAY on created socket if possible.  (This will only help for
+    requests that send bodies.)
+
 === 1.4.1 / 2010-10-13
 
 * Bug Fixes

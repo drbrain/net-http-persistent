@@ -7,9 +7,17 @@ class Net::HTTP
   alias orig_connect connect
 
   def connect
-    return unless use_ssl?
+    unless use_ssl? then
+      io = Object.new
+      def io.setsockopt(*a) @setsockopt = a end
+
+      @socket = Net::BufferedIO.new io
+
+      return
+    end
 
     io = open '/dev/null'
+    def io.setsockopt(*a) @setsockopt = a end
 
     @ssl_context ||= OpenSSL::SSL::SSLContext.new
 
@@ -51,9 +59,13 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     end
     def finish
       @finished += 1
+      @socket = nil
     end
     def start
       @started += 1
+      io = Object.new
+      def io.setsockopt(*a) @setsockopt = a end
+      @socket = Net::BufferedIO.new io
     end
     def reset?
       @started == @finished + 1
@@ -132,6 +144,15 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     assert_includes conns.keys, 'example.com:80'
     assert_same c, conns['example.com:80']
+
+    socket = c.instance_variable_get :@socket
+    expected = if Socket.const_defined? :TCP_NODELAY then
+                 [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1]
+               else
+                 nil
+               end
+
+    assert_equal expected, socket.io.instance_variable_get(:@setsockopt)
   end
 
   def test_connection_for_cached
