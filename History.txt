@@ -1,4 +1,4 @@
-=== 1.5 / ??
+=== 1.5 / 2011-01-25
 
 * Minor Enhancements
   * Set TCP_NODELAY on created socket if possible.  (This will only help for
