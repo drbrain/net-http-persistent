@@ -1,4 +1,5 @@
 .autotest
+.gemtest
 History.txt
 Manifest.txt
 README.txt
