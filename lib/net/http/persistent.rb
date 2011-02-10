@@ -37,7 +37,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent use are using
 
-  VERSION = '1.5'
+  VERSION = '1.5.1'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -222,11 +222,11 @@ class Net::HTTP::Persistent
       connection.read_timeout = @read_timeout if @read_timeout
 
       connection.start
-    end
 
-    if Socket.const_defined? :TCP_NODELAY then
-      socket = connection.instance_variable_get :@socket
-      socket.io.setsockopt Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1
+      if Socket.const_defined? :TCP_NODELAY then
+        socket = connection.instance_variable_get :@socket
+        socket.io.setsockopt Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1
+      end
     end
 
     connection

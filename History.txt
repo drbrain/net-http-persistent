@@ -1,3 +1,8 @@
+=== 1.5.1 / 2011-02-10
+
+* Bug fix
+  * Only set TCP_NODELAY at connection start.  Reported by Brian Henderson.
+
 === 1.5 / 2011-01-25
 
 * Minor Enhancements

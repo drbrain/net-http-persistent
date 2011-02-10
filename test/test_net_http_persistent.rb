@@ -167,6 +167,27 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_same cached, c
   end
 
+  def test_connection_for_closed
+    cached = basic_connection
+    cached.start
+    if Socket.const_defined? :TCP_NODELAY then
+      def (cached.instance_variable_get(:@socket).io).setsockopt(*a)
+        raise IOError, 'closed stream'
+      end
+    end
+    conns['example.com:80'] = cached
+
+    c = @http.connection_for @uri
+
+    assert c.started?
+
+    assert_includes conns.keys, 'example.com:80'
+    assert_same c, conns['example.com:80']
+
+    socket = c.instance_variable_get :@socket
+    assert_nil socket.io.instance_variable_get(:@setsockopt)
+  end
+
   def test_connection_for_debug_output
     io = StringIO.new
     @http.debug_output = io
