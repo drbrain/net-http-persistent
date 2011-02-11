@@ -1,4 +1,4 @@
-= net_http_persistent
+= net-http-persistent
 
 * http://seattlerb.rubyforge.org/net-http-persistent
 
