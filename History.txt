@@ -1,3 +1,10 @@
+=== 1.5.2 / 2011-02-24
+
+* Bug Fix
+  * Only set TCP_NODELAY if the connection has an @socket.  Allows
+    net-http-persistent to be used with fake_web.  Reported by Sathish
+    Pasupunuri.
+
 === 1.5.1 / 2011-02-10
 
 * Bug fix

@@ -37,7 +37,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent use are using
 
-  VERSION = '1.5.1'
+  VERSION = '1.5.2'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -225,7 +225,8 @@ class Net::HTTP::Persistent
 
       if Socket.const_defined? :TCP_NODELAY then
         socket = connection.instance_variable_get :@socket
-        socket.io.setsockopt Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1
+        socket.io.setsockopt Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1 if
+          socket # for fakeweb
       end
     end
 
