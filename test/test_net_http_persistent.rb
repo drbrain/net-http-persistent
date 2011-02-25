@@ -146,13 +146,27 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_same c, conns['example.com:80']
 
     socket = c.instance_variable_get :@socket
-    expected = if Socket.const_defined? :TCP_NODELAY then
-                 [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1]
-               else
-                 nil
-               end
 
-    assert_equal expected, socket.io.instance_variable_get(:@setsockopt)
+    assert_equal @http.sockopts, socket.io.instance_variable_get(:@setsockopt)
+  end
+
+  def test_sockopts
+    defaults = if Socket.const_defined? :TCP_NODELAY then
+      [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1]
+    else
+      nil
+    end
+    assert_equal defaults, @http.sockopts
+
+    @http.sockopts << Socket::SO_KEEPALIVE
+
+    c = @http.connection_for @uri
+
+    assert c.started?
+
+    socket = c.instance_variable_get :@socket
+
+    assert_equal @http.sockopts, socket.io.instance_variable_get(:@setsockopt)
   end
 
   def test_connection_for_cached

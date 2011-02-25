@@ -191,6 +191,10 @@ class Net::HTTP::Persistent
     @private_key     = nil
     @verify_callback = nil
     @verify_mode     = nil
+
+    if Socket.const_defined? :TCP_NODELAY then
+      @sockopts = [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1]
+    end
   end
 
   ##
@@ -223,11 +227,8 @@ class Net::HTTP::Persistent
 
       connection.start
 
-      if Socket.const_defined? :TCP_NODELAY then
-        socket = connection.instance_variable_get :@socket
-        socket.io.setsockopt Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1 if
-          socket # for fakeweb
-      end
+      socket = connection.instance_variable_get :@socket
+      socket.io.setsockopt *sockopts if socket # for fakeweb
     end
 
     connection
@@ -236,6 +237,8 @@ class Net::HTTP::Persistent
   rescue Errno::EHOSTDOWN
     raise Error, "host down: #{connection.address}:#{connection.port}"
   end
+
+  attr_accessor :sockopts
 
   ##
   # Returns an error message containing the number of requests performed on
