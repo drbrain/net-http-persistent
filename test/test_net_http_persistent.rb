@@ -9,7 +9,7 @@ class Net::HTTP
   def connect
     unless use_ssl? then
       io = Object.new
-      def io.setsockopt(*a) @setsockopt = a end
+      def io.setsockopt(*a) @setsockopts ||= []; @setsockopts << a end
 
       @socket = Net::BufferedIO.new io
 
@@ -17,7 +17,7 @@ class Net::HTTP
     end
 
     io = open '/dev/null'
-    def io.setsockopt(*a) @setsockopt = a end
+    def io.setsockopt(*a) @setsockopts ||= []; @setsockopts << a end
 
     @ssl_context ||= OpenSSL::SSL::SSLContext.new
 
@@ -64,7 +64,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     def start
       @started += 1
       io = Object.new
-      def io.setsockopt(*a) @setsockopt = a end
+      def io.setsockopt(*a) @setsockopts ||= []; @setsockopts << a end
       @socket = Net::BufferedIO.new io
     end
     def reset?
@@ -147,12 +147,12 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     socket = c.instance_variable_get :@socket
     expected = if Socket.const_defined? :TCP_NODELAY then
-                 [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1]
+                 [[Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1]]
                else
-                 nil
+                 []
                end
 
-    assert_equal expected, socket.io.instance_variable_get(:@setsockopt)
+    assert_equal expected, socket.io.instance_variable_get(:@setsockopts)
   end
 
   def test_connection_for_cached
@@ -269,6 +269,20 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     end
 
     assert_match %r%connection refused%, e.message
+  end
+
+  def test_connection_for_socket_options
+    @http.socket_options << [Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1]
+    c = @http.connection_for @uri
+
+    socket = c.instance_variable_get :@socket
+
+    expected = []
+    expected << [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1] if
+      Socket.const_defined? :TCP_NODELAY
+    expected << [Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1]
+
+    assert_equal expected, socket.io.instance_variable_get(:@setsockopts)
   end
 
   def test_error_message

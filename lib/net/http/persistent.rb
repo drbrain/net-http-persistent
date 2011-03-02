@@ -37,7 +37,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent use are using
 
-  VERSION = '1.5.2'
+  VERSION = '1.6'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -124,6 +124,17 @@ class Net::HTTP::Persistent
   attr_reader :request_key # :nodoc:
 
   ##
+  # An array of options for Socket#setsockopt.
+  #
+  # By default the TCP_NODELAY option is set on sockets.
+  #
+  # To set additional options append them to this array:
+  #
+  #   http.socket_options << [Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1]
+
+  attr_reader :socket_options
+
+  ##
   # SSL verification callback.  Used when ca_file is set.
 
   attr_accessor :verify_callback
@@ -174,12 +185,16 @@ class Net::HTTP::Persistent
       @proxy_connection_id = [nil, *@proxy_args].join ':'
     end
 
-    @debug_output  = nil
-    @headers       = {}
-    @http_versions = {}
-    @keep_alive    = 30
-    @open_timeout  = nil
-    @read_timeout  = nil
+    @debug_output   = nil
+    @headers        = {}
+    @http_versions  = {}
+    @keep_alive     = 30
+    @open_timeout   = nil
+    @read_timeout   = nil
+    @socket_options = []
+
+    @socket_options << [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1] if
+      Socket.const_defined? :TCP_NODELAY
 
     key = ['net_http_persistent', name, 'connections'].compact.join '_'
     @connection_key = key.intern
@@ -223,10 +238,12 @@ class Net::HTTP::Persistent
 
       connection.start
 
-      if Socket.const_defined? :TCP_NODELAY then
-        socket = connection.instance_variable_get :@socket
-        socket.io.setsockopt Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1 if
-          socket # for fakeweb
+      socket = connection.instance_variable_get :@socket
+      
+      if socket then # for fakeweb
+        @socket_options.each do |option|
+          socket.io.setsockopt(*option)
+        end
       end
     end
 

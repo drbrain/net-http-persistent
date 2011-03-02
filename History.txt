@@ -1,3 +1,9 @@
+=== 1.6 / 2011-03-01
+
+* Minor Engancement
+  * Added Net::HTTP::Persistent#socket_options to set multiple socket options
+    at socket startup.
+
 === 1.5.2 / 2011-02-24
 
 * Bug Fix
