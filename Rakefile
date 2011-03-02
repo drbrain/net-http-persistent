@@ -5,11 +5,12 @@ require 'hoe'
 
 Hoe.plugin :git
 Hoe.plugin :minitest
-Hoe.plugin :rubyforge
 
 Hoe.spec 'net-http-persistent' do |p|
-  self.rubyforge_name = 'seattlerb'
   developer 'Eric Hodel', 'drbrain@segment7.net'
+
+  rdoc_locations <<
+    'docs.seattlerb.org:/data/www/docs.seattlerb.org/net-http-persistent/'
 end
 
 # vim: syntax=Ruby
