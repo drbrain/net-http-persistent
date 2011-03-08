@@ -2,7 +2,8 @@
 
 * Bug Fix
   * Net::HTTP::Persistent#request now handles Errno::EINVAL as a connection
-    reset and will be retried for idempotent requests.
+    reset and will be retried for idempotent requests.  Reported by Aaron
+    Qian.
 
 === 1.6 / 2011-03-01
 
