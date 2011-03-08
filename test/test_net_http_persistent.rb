@@ -522,6 +522,35 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal 1, reqs[c.object_id]
   end
 
+  def test_request_invalid
+    c = basic_connection
+    def c.request(*a) raise Errno::EINVAL, "write" end
+
+    e = assert_raises Net::HTTP::Persistent::Error do
+      @http.request @uri
+    end
+
+    assert_equal 0, reqs[c.object_id]
+    assert_match %r%too many connection resets%, e.message
+  end
+
+  def test_request_invalid_retry
+    c = basic_connection
+    def c.request(*a)
+      if defined? @called then
+        Net::HTTPResponse.allocate
+      else
+        @called = true
+        raise Errno::EINVAL, "write"
+      end
+    end
+
+    @http.request @uri
+
+    assert c.reset?
+    assert c.finished?
+  end
+
   def test_request_reset
     c = basic_connection
     def c.request(*a) raise Errno::ECONNRESET end

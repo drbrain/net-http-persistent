@@ -37,7 +37,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent use are using
 
-  VERSION = '1.6'
+  VERSION = '1.6.1'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -392,7 +392,8 @@ class Net::HTTP::Persistent
       bad_response = true
       retry
     rescue IOError, EOFError, Timeout::Error,
-           Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE => e
+           Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE,
+           Errno::EINVAL => e
 
       if retried or not idempotent? req
         due_to = "(due to #{e.message} - #{e.class})"

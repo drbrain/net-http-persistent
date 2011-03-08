@@ -1,3 +1,9 @@
+=== 1.6.1 / 2011-03-08
+
+* Bug Fix
+  * Net::HTTP::Persistent#request now handles Errno::EINVAL as a connection
+    reset and will be retried for idempotent requests.
+
 === 1.6 / 2011-03-01
 
 * Minor Engancement
