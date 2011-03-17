@@ -1,3 +1,4 @@
+require "rubygems"
 require 'minitest/autorun'
 require 'net/http/persistent'
 require 'openssl'
@@ -51,7 +52,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   class BasicConnection
-    attr_accessor :started, :finished, :address, :port
+    attr_accessor :started, :finished, :address, :port, :server_timeout
     attr_reader :req
     def initialize
       @started, @finished = 0, 0
@@ -105,6 +106,10 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def reqs
     Thread.current[@http.request_key] ||= {}
+  end
+
+  def timeouts
+    Thread.current[@http.timeout_key] ||= {}
   end
 
   def test_initialize
@@ -599,6 +604,20 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_match %r%too many connection resets%, e.message
   end
 
+  def test_request_reset_safe_on_server_timeout
+    @http.server_timeout = 10
+    c = connection
+    timeouts[c.object_id] = Time.now.utc.to_i - (@http.server_timeout + 1)
+
+    post = Net::HTTP::Post.new @uri.path
+    @http.request @uri, post
+    req = c.req
+
+    assert c.finished?
+    assert c.started?
+    assert c.reset?
+  end
+
   def test_request_post
     c = connection
 
@@ -744,5 +763,16 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal OpenSSL::SSL::VERIFY_NONE, c.verify_mode
   end
 
+  def test_timed_out_eh
+    @http.server_timeout = 10
+    timed_out_connection = basic_connection
+    timeouts[timed_out_connection.object_id] = Time.now.utc.to_i - (@http.server_timeout + 1)
+    assert @http.timed_out? timed_out_connection
+
+    @http.server_timeout = 10
+    available_connection = basic_connection
+    timeouts[available_connection.object_id] = Time.now.utc.to_i - (@http.server_timeout - 1)
+    refute @http.timed_out? available_connection
+  end
 end
 

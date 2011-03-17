@@ -63,6 +63,11 @@ class Net::HTTP::Persistent
   attr_reader :connection_key # :nodoc:
 
   ##
+  # Where this instance's connection timing data lives in the thread local variables
+
+  attr_reader :timeout_key # :nodoc:
+
+  ##
   # Sends debug_output to this IO via Net::HTTP#set_debug_output.
   #
   # Never use this method in production code, it causes a serious security
@@ -117,6 +122,12 @@ class Net::HTTP::Persistent
   # Seconds to wait until reading one block.  See Net::HTTP#read_timeout
 
   attr_accessor :read_timeout
+
+  ##
+  # Seconds until anticipated server connection timeout
+  # helps alleviate http://www.ietf.org/rfc/rfc2616.txt section: 8.1.4 Practical Considerations
+
+  attr_accessor :server_timeout
 
   ##
   # Where this instance's request counts live in the thread local variables
@@ -191,6 +202,7 @@ class Net::HTTP::Persistent
     @keep_alive     = 30
     @open_timeout   = nil
     @read_timeout   = nil
+    @server_timeout = nil
     @socket_options = []
 
     @socket_options << [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1] if
@@ -200,6 +212,8 @@ class Net::HTTP::Persistent
     @connection_key = key.intern
     key = ['net_http_persistent', name, 'requests'].compact.join '_'
     @request_key    = key.intern
+    key = ['net_http_persistent', name, 'timeouts'].compact.join '_'
+    @timeout_key    = key.intern
 
     @certificate     = nil
     @ca_file         = nil
@@ -214,8 +228,10 @@ class Net::HTTP::Persistent
   def connection_for uri
     Thread.current[@connection_key] ||= {}
     Thread.current[@request_key]    ||= Hash.new 0
+    Thread.current[@timeout_key]    ||= Hash.new 0
 
     connections = Thread.current[@connection_key]
+    connection_timeouts = Thread.current[@timeout_key]
 
     net_http_args = [uri.host, uri.port]
     connection_id = net_http_args.join ':'
@@ -228,6 +244,7 @@ class Net::HTTP::Persistent
     unless connection = connections[connection_id] then
       connections[connection_id] = Net::HTTP.new(*net_http_args)
       connection = connections[connection_id]
+      connection_timeouts[connection.object_id] = Time.now.utc.to_i
       ssl connection if uri.scheme == 'https'
     end
 
@@ -378,6 +395,13 @@ class Net::HTTP::Persistent
     connection_id = connection.object_id
 
     begin
+      last_request_at = Thread.current[@timeout_key][connection_id]
+      if timed_out? connection
+        reset connection
+      else
+        Thread.current[@timeout_key][connection_id] = Time.now.utc.to_i
+      end
+
       Thread.current[@request_key][connection_id] += 1
       response = connection.request req, &block
 
@@ -413,6 +437,12 @@ class Net::HTTP::Persistent
     @http_versions["#{uri.host}:#{uri.port}"] ||= response.http_version
 
     response
+  end
+
+  def timed_out? connection
+    return unless @server_timeout
+    last_request_at = Thread.current[@timeout_key][connection.object_id]
+    (Time.now.utc.to_i - last_request_at) > @server_timeout
   end
 
   ##
@@ -485,4 +515,3 @@ class Net::HTTP::Persistent
   end
 
 end
-
