@@ -1,3 +1,9 @@
+=== 1.7 / 2011-03-29
+
+* Minor Enhancement
+  * Added Net::HTTP::Persistent#pipeline which integrates with
+    net-http-pipeline when it is present.
+
 === 1.6.1 / 2011-03-08
 
 * Bug Fix
@@ -7,7 +13,7 @@
 
 === 1.6 / 2011-03-01
 
-* Minor Engancement
+* Minor Enhancement
   * Added Net::HTTP::Persistent#socket_options to set multiple socket options
     at socket startup.
 

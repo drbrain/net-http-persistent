@@ -3,6 +3,11 @@ require 'net/http/faster'
 require 'uri'
 require 'cgi' # for escaping
 
+begin
+  require 'net/http/pipeline'
+rescue LoadError
+end
+
 ##
 # Persistent connections for Net::HTTP
 #
@@ -305,6 +310,23 @@ class Net::HTTP::Persistent
 
   def normalize_uri uri
     (uri =~ /^https?:/) ? uri : "http://#{uri}"
+  end
+
+  ##
+  # Pipelines +requests+ to the HTTP server at +uri+ yielding responses if a
+  # block is given.  Returns all responses recieved.
+  #
+  # See
+  # Net::HTTP::Pipeline[http://docs.seattlerb.org/net-http-pipeline/Net/HTTP/Pipeline.html]
+  # for further details.
+  #
+  # Only if <tt>net-http-pipeline</tt> was required before
+  # <tt>net-http-persistent</tt> #pipeline will be present.
+
+  def pipeline uri, requests, &block # :yields: responses
+    connection = connection_for uri
+
+    connection.pipeline requests, &block
   end
 
   ##

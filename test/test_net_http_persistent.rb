@@ -1,3 +1,4 @@
+require 'rubygems'
 require 'minitest/autorun'
 require 'net/http/persistent'
 require 'openssl'
@@ -61,20 +62,23 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
       @finished += 1
       @socket = nil
     end
+    def finished?
+      @finished >= 1
+    end
+    def pipeline requests, &block
+      requests.map { |r| r.path }
+    end
+    def reset?
+      @started == @finished + 1
+    end
     def start
       @started += 1
       io = Object.new
       def io.setsockopt(*a) @setsockopts ||= []; @setsockopts << a end
       @socket = Net::BufferedIO.new io
     end
-    def reset?
-      @started == @finished + 1
-    end
     def started?
       @started >= 1
-    end
-    def finished?
-      @finished >= 1
     end
   end
 
@@ -345,6 +349,25 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal 'http://example',  @http.normalize_uri('example')
     assert_equal 'http://example',  @http.normalize_uri('http://example')
     assert_equal 'https://example', @http.normalize_uri('https://example')
+  end
+
+  def test_pipeline
+    skip 'net-http-pipeline not installed' unless defined?(Net::HTTP::Pipeline)
+
+    cached = basic_connection
+    cached.start
+    conns['example.com:80'] = cached
+
+    requests = [
+      Net::HTTP::Get.new((@uri + '1').request_uri),
+      Net::HTTP::Get.new((@uri + '2').request_uri),
+    ]
+
+    responses = @http.pipeline @uri, requests
+
+    assert_equal 2, responses.length
+    assert_equal '/1', responses.first
+    assert_equal '/2', responses.last
   end
 
   def test_proxy_from_env
