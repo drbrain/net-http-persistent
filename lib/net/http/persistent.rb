@@ -360,6 +360,8 @@ class Net::HTTP::Persistent
     finish connection
 
     connection.start
+
+    Thread.current[@timeout_key][connection.object_id] = Time.now.utc.to_i
   rescue Errno::ECONNREFUSED
     raise Error, "connection refused: #{connection.address}:#{connection.port}"
   rescue Errno::EHOSTDOWN
@@ -398,6 +400,8 @@ class Net::HTTP::Persistent
       last_request_at = Thread.current[@timeout_key][connection_id]
       if timed_out? connection
         reset connection
+        retried      = false
+        bad_response = false
       else
         Thread.current[@timeout_key][connection_id] = Time.now.utc.to_i
       end

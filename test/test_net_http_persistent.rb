@@ -82,6 +82,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   def basic_connection
     c = BasicConnection.new
     conns["#{@uri.host}:#{@uri.port}"] = c
+    timeouts["#{@uri.host}:#{@uri.port}"] = Time.now.utc.to_i
     c
   end
 
