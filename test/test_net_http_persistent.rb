@@ -289,6 +289,22 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal expected, socket.io.instance_variable_get(:@setsockopts)
   end
 
+  def test_connection_for_ssl
+    uri = URI.parse 'https://example.com/path'
+    c = @http.connection_for uri
+
+    assert c.started?
+    assert c.use_ssl?
+  end
+
+  def test_connection_for_ssl_case
+    uri = URI.parse 'HTTPS://example.com/path'
+    c = @http.connection_for uri
+
+    assert c.started?
+    assert c.use_ssl?
+  end
+
   def test_error_message
     c = basic_connection
     reqs[c.object_id] = 5

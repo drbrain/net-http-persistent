@@ -42,7 +42,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent use are using
 
-  VERSION = '1.7'
+  VERSION = '1.7.1'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -233,7 +233,7 @@ class Net::HTTP::Persistent
     unless connection = connections[connection_id] then
       connections[connection_id] = Net::HTTP.new(*net_http_args)
       connection = connections[connection_id]
-      ssl connection if uri.scheme == 'https'
+      ssl connection if uri.scheme.downcase == 'https'
     end
 
     unless connection.started? then
