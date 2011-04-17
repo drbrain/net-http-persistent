@@ -42,7 +42,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent use are using
 
-  VERSION = '1.7.1'
+  VERSION = '1.7'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -244,7 +244,7 @@ class Net::HTTP::Persistent
       connection.start
 
       socket = connection.instance_variable_get :@socket
-      
+
       if socket then # for fakeweb
         @socket_options.each do |option|
           socket.io.setsockopt(*option)
@@ -439,7 +439,7 @@ class Net::HTTP::Persistent
 
   ##
   # Shuts down all connections for +thread+.
-  # 
+  #
   # Uses the current thread by default.
   #
   # If you've used Net::HTTP::Persistent across multiple threads you should
@@ -473,7 +473,7 @@ class Net::HTTP::Persistent
   # connections!  Call #shutdown at the appropriate time instead!
   #
   # Use this method only as a last resort!
-  
+
   def shutdown_in_all_threads
     Thread.list.each do |thread|
       shutdown thread
