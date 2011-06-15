@@ -153,6 +153,13 @@ class Net::HTTP::Persistent
   attr_accessor :verify_mode
 
   ##
+  # Enable retries of non-idempotent requests (e.g. POST requests) when the
+  # server has disconnected. This can in the worst case lead to multiple
+  # requests with the same data, but it is useful for simpler applications.
+
+  attr_accessor :retry_change_requests
+
+  ##
   # Creates a new Net::HTTP::Persistent.
   #
   # Set +name+ to keep your connections apart from everybody else's.  Not
@@ -211,6 +218,8 @@ class Net::HTTP::Persistent
     @private_key     = nil
     @verify_callback = nil
     @verify_mode     = nil
+
+    @retry_change_requests = false
   end
 
   ##
@@ -302,6 +311,17 @@ class Net::HTTP::Persistent
     when Net::HTTP::Delete, Net::HTTP::Get, Net::HTTP::Head,
          Net::HTTP::Options, Net::HTTP::Put, Net::HTTP::Trace then
       true
+    end
+  end
+
+  ##
+  # Is the request idempotent or is retry_change_requests allowed
+
+  def can_retry? req
+    if idempotent? req
+      true
+    else
+      retry_change_requests
     end
   end
 
@@ -409,7 +429,7 @@ class Net::HTTP::Persistent
       finish connection
 
       raise Error, "too many bad responses #{message}" if
-        bad_response or not idempotent? req
+        bad_response or not can_retry? req
 
       bad_response = true
       retry
@@ -417,7 +437,7 @@ class Net::HTTP::Persistent
            Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE,
            Errno::EINVAL => e
 
-      if retried or not idempotent? req
+      if retried or not can_retry? req
         due_to = "(due to #{e.message} - #{e.class})"
         message = error_message connection
 
