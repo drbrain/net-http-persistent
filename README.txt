@@ -1,6 +1,6 @@
 = net-http-persistent
 
-* http://seattlerb.rubyforge.org/net-http-persistent
+* http://docs.seattlerb.org/net-http-persistent
 * https://github.com/drbrain/net-http-persistent
 
 == DESCRIPTION:
