@@ -783,5 +783,17 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal OpenSSL::SSL::VERIFY_NONE, c.verify_mode
   end
 
+  def test_can_retry_change_requests
+    get  = Net::HTTP::Get.new('/')
+    post = Net::HTTP::Post.new('/')
+    assert @http.can_retry?(get)
+    refute @http.retry_change_requests
+    refute @http.can_retry?(post)
+    @http.retry_change_requests = true
+    assert @http.can_retry?(get)
+    assert @http.retry_change_requests
+    assert @http.can_retry?(post)
+  end
+
 end
 
