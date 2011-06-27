@@ -42,7 +42,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent use are using
 
-  VERSION = '1.7'
+  VERSION = '1.8'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -153,9 +153,13 @@ class Net::HTTP::Persistent
   attr_accessor :verify_mode
 
   ##
-  # Enable retries of non-idempotent requests (e.g. POST requests) when the
-  # server has disconnected. This can in the worst case lead to multiple
-  # requests with the same data, but it is useful for simpler applications.
+  # Enable retries of non-idempotent requests that change data (e.g. POST
+  # requests) when the server has disconnected.
+  #
+  # This will in the worst case lead to multiple requests with the same data,
+  # but it may be useful for some applications.  Take care when enabling
+  # this option to ensure it is safe to POST or perform other non-idempotent
+  # requests to the server.
 
   attr_accessor :retry_change_requests
 
@@ -318,11 +322,7 @@ class Net::HTTP::Persistent
   # Is the request idempotent or is retry_change_requests allowed
 
   def can_retry? req
-    if idempotent? req
-      true
-    else
-      retry_change_requests
-    end
+    retry_change_requests or idempotent?(req)
   end
 
   ##

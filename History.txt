@@ -1,3 +1,11 @@
+=== 1.8 / 2011-06-27
+
+* Minor Enhancement
+  * Added Net::HTTP::Persistent#retry_change_requests which allows POST and
+    other non-idempotent requests to be retried automatically.  Take care when
+    enabling this option to ensure the server will handle multiple POSTs with
+    the same data in a sane manner.
+
 === 1.7 / 2011-04-17
 
 * Minor Enhancement
