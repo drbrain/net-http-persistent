@@ -473,6 +473,19 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_match %r%connection refused%, e.message
   end
 
+  def test_ssl_error
+    uri = URI.parse 'https://example.com/path'
+    c = @http.connection_for uri
+    def c.request(*)
+      raise OpenSSL::SSL::SSLError, "SSL3_WRITE_PENDING:bad write retry"
+    end
+
+    e = assert_raises Net::HTTP::Persistent::Error do
+      @http.request uri
+    end
+    assert_match %r%bad write retry%, e.message
+  end
+
   def test_request
     @http.headers['user-agent'] = 'test ua'
     c = connection

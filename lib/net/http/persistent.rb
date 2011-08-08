@@ -1,4 +1,5 @@
 require 'net/http'
+require 'net/https'
 require 'net/http/faster'
 require 'uri'
 require 'cgi' # for escaping
@@ -435,7 +436,7 @@ class Net::HTTP::Persistent
       retry
     rescue IOError, EOFError, Timeout::Error,
            Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE,
-           Errno::EINVAL => e
+           Errno::EINVAL, OpenSSL::SSL::SSLError => e
 
       if retried or not can_retry? req
         due_to = "(due to #{e.message} - #{e.class})"
@@ -506,7 +507,6 @@ class Net::HTTP::Persistent
   # Enables SSL on +connection+
 
   def ssl connection
-    require 'net/https'
     connection.use_ssl = true
 
     # suppress warning but allow override
