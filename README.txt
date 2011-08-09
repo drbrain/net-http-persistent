@@ -5,8 +5,8 @@
 
 == DESCRIPTION:
 
-Manages persistent connections using Net::HTTP plus a speed fix for 1.8.  It's
-thread-safe too!
+Manages persistent connections using Net::HTTP plus a speed fix for Ruby 1.8.
+It's thread-safe too!
 
 Using persistent HTTP connections can dramatically increase the speed of HTTP.
 Creating a new HTTP connection for every request involves an extra TCP
@@ -14,14 +14,14 @@ round-trip and causes TCP congestion avoidance negotiation to start over.
 
 Net::HTTP supports persistent connections with some API methods but does not
 handle reconnection gracefully.  net-http-persistent supports reconnection
-according to RFC 2616.
+and retry according to RFC 2616.
 
 == FEATURES/PROBLEMS:
 
 * Supports SSL
 * Thread-safe
 * Pure ruby
-* Timeout-less speed boost for 1.8 (by Aaron Patterson)
+* Timeout-less speed boost for Ruby 1.8 (by Aaron Patterson)
 
 == INSTALL:
 
