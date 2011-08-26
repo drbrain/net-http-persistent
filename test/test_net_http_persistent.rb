@@ -774,6 +774,29 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal :callback, c.verify_callback
   end
 
+  def test_ssl_cert_store
+    store = OpenSSL::X509::Store.new
+    @http.cert_store = store
+
+    c = Net::HTTP.new 'localhost', 80
+
+    @http.ssl c
+
+    assert c.use_ssl?
+    assert_equal store, c.cert_store
+  end
+
+  def test_default_cert_store
+    @http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+
+    c = Net::HTTP.new 'localhost', 80
+
+    @http.ssl c
+
+    assert c.use_ssl?
+    assert c.cert_store
+  end
+
   def test_ssl_certificate
     @http.certificate = :cert
     @http.private_key = :key
