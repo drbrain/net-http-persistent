@@ -1,3 +1,13 @@
+=== 1.9 / 2011-08-26
+
+* Minor Enhancement
+  * Added Net::HTTP::Persistent#cert_store to set an SSL certificate store
+    which defaults to the OpenSSL default certificate store.
+
+    HTTPS server certificates will be validated when this option is combined
+    with setting Net::HTTP::Persistent#verify_mode to
+    OpenSSL::SSL::VERIFY_PEER.
+
 === 1.8.1 / 2011-08-08
 
 * Bug Fix
