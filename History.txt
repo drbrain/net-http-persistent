@@ -1,3 +1,10 @@
+=== 2.0 / 2011-08-26
+
+* Incompatibility
+  * Net::HTTP::Persistent#verify_mode now defaults to
+    OpenSSL::SSL::VERIFY_PEER.  This may cause HTTPS request failures if your
+    default certificate store lacks the correct certificates.
+
 === 1.9 / 2011-08-26
 
 * Minor Enhancement

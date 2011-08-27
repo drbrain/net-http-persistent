@@ -43,7 +43,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent use are using
 
-  VERSION = '1.9'
+  VERSION = '2.0'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -152,12 +152,14 @@ class Net::HTTP::Persistent
   attr_accessor :verify_callback
 
   ##
-  # HTTPS verify mode.  Defaults to OpenSSL::SSL::VERIFY_NONE which ignores
-  # certificate problems.
+  # HTTPS verify mode.  Defaults to OpenSSL::SSL::VERIFY_PEER which verifies
+  # the server certificate.
   #
-  # Setting this to OpenSSL::SSL::VERIFY_PEER will, if no certificate, ca_file
-  # or cert_store are otherwhise set, use the systems default certificate
-  # store. This means it will use the Operating Systems root CA certificates.
+  # If no certificate, ca_file or cert_store is set the default system
+  # certificate store is used.
+  #
+  # To disable server certificate validation set to OpenSSL::SSL::VERIFY_NONE,
+  # but this is a bad idea as it disables SSL protections.
   #
   # You can use +verify_mode+ to override any default values.
 
@@ -520,8 +522,7 @@ class Net::HTTP::Persistent
   def ssl connection
     connection.use_ssl = true
 
-    # suppress warning but allow override
-    connection.verify_mode = OpenSSL::SSL::VERIFY_NONE unless @verify_mode
+    connection.verify_mode = OpenSSL::SSL::VERIFY_PEER unless @verify_mode
 
     if @ca_file then
       connection.ca_file = @ca_file
@@ -545,7 +546,6 @@ class Net::HTTP::Persistent
         store
       end
     end
-
   end
 
 end
