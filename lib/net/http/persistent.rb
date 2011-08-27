@@ -64,6 +64,12 @@ class Net::HTTP::Persistent
   attr_accessor :ca_file
 
   ##
+  # An SSL certificate store. Setting this will override the default
+  # certificate store. See verify_mode for more information.
+
+  attr_accessor :cert_store
+
+  ##
   # Where this instance's connections live in the thread local variables
 
   attr_reader :connection_key # :nodoc:
@@ -149,6 +155,10 @@ class Net::HTTP::Persistent
   # HTTPS verify mode.  Defaults to OpenSSL::SSL::VERIFY_NONE which ignores
   # certificate problems.
   #
+  # Setting this to OpenSSL::SSL::VERIFY_PEER will, if no certificate, ca_file
+  # or cert_store are otherwhise set, use the systems default certificate
+  # store. This means it will use the Operating Systems root CA certificates.
+  #
   # You can use +verify_mode+ to override any default values.
 
   attr_accessor :verify_mode
@@ -223,6 +233,7 @@ class Net::HTTP::Persistent
     @private_key     = nil
     @verify_callback = nil
     @verify_mode     = nil
+    @cert_store      = nil
 
     @retry_change_requests = false
   end
@@ -523,7 +534,18 @@ class Net::HTTP::Persistent
       connection.key  = @private_key
     end
 
-    connection.verify_mode = @verify_mode if @verify_mode
+    connection.cert_store = @cert_store if @cert_store
+
+    if @verify_mode then
+      connection.verify_mode = @verify_mode
+
+      connection.cert_store ||= begin
+        store = OpenSSL::X509::Store.new
+        store.set_default_paths
+        store
+      end
+    end
+
   end
 
 end
