@@ -522,7 +522,7 @@ class Net::HTTP::Persistent
   def ssl connection
     connection.use_ssl = true
 
-    connection.verify_mode = OpenSSL::SSL::VERIFY_PEER unless @verify_mode
+    connection.verify_mode = @verify_mode || OpenSSL::SSL::VERIFY_PEER
 
     if @ca_file then
       connection.ca_file = @ca_file
@@ -535,16 +535,12 @@ class Net::HTTP::Persistent
       connection.key  = @private_key
     end
 
-    connection.cert_store = @cert_store if @cert_store
-
-    if @verify_mode then
-      connection.verify_mode = @verify_mode
-
-      connection.cert_store ||= begin
-        store = OpenSSL::X509::Store.new
-        store.set_default_paths
-        store
-      end
+    connection.cert_store = if @cert_store    
+      @cert_store
+    else
+      store = OpenSSL::X509::Store.new
+      store.set_default_paths
+      store
     end
   end
 
