@@ -6,4 +6,6 @@ README.txt
 Rakefile
 lib/net/http/faster.rb
 lib/net/http/persistent.rb
+lib/net/http/persistent/ssl_reuse.rb
 test/test_net_http_persistent.rb
+test/test_net_http_persistent_ssl_reuse.rb

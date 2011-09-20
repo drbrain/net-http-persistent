@@ -43,7 +43,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent use are using
 
-  VERSION = '2.0'
+  VERSION = '2.1'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -258,7 +258,8 @@ class Net::HTTP::Persistent
     end
 
     unless connection = connections[connection_id] then
-      connections[connection_id] = Net::HTTP.new(*net_http_args)
+      connections[connection_id] =
+        Net::HTTP::Persistent::SSLReuse.new(*net_http_args)
       connection = connections[connection_id]
       ssl connection if uri.scheme.downcase == 'https'
     end
@@ -549,4 +550,6 @@ class Net::HTTP::Persistent
   end
 
 end
+
+require 'net/http/persistent/ssl_reuse'
 

@@ -1,3 +1,9 @@
+=== 2.1 / ??
+
+* Minor Enhancement
+  * For HTTPS connections, SSL sessions are now reused avoiding the extra
+    round trips and computations of extra SSL handshakes.
+
 === 2.0 / 2011-08-26
 
 * Incompatibility

@@ -4,10 +4,10 @@ require 'net/http/persistent'
 require 'openssl'
 require 'stringio'
 
-class Net::HTTP
+class Net::HTTP::Persistent::SSLReuse
   alias orig_connect connect
 
-  def connect
+  def test_connect
     unless use_ssl? then
       io = Object.new
       def io.setsockopt(*a) @setsockopts ||= []; @setsockopts << a end
@@ -29,6 +29,11 @@ class Net::HTTP
 
     @socket = Net::BufferedIO.new s
   end
+
+  def self.use_connect which
+    self.send :remove_method, :connect
+    self.send :alias_method, :connect, which
+  end
 end
 
 class TestNetHttpPersistent < MiniTest::Unit::TestCase
@@ -43,12 +48,16 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     ENV.delete 'HTTP_PROXY_USER'
     ENV.delete 'http_proxy_pass'
     ENV.delete 'HTTP_PROXY_PASS'
+
+    Net::HTTP::Persistent::SSLReuse.use_connect :test_connect
   end
 
   def teardown
     Thread.current.keys.each do |key|
       Thread.current[key] = nil
     end
+
+    Net::HTTP::Persistent::SSLReuse.use_connect :orig_connect
   end
 
   class BasicConnection
@@ -139,6 +148,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     @http.open_timeout = 123
     @http.read_timeout = 321
     c = @http.connection_for @uri
+
+    assert_kind_of Net::HTTP::Persistent::SSLReuse, c
 
     assert c.started?
     refute c.proxy?
