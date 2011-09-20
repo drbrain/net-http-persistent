@@ -1,4 +1,4 @@
-=== 2.1 / ??
+=== 2.1 / 2011-09-19
 
 * Minor Enhancement
   * For HTTPS connections, SSL sessions are now reused avoiding the extra
