@@ -6,6 +6,10 @@
     problems with SSL session reuse it can be disabled by
     Net::HTTP::Persistent#reuse_ssl_sessions
 
+* Bug Fix
+  * The default certificate store is now used even if #verify_mode was not
+    set.  Issue #7 by Matthew M. Boedicker
+
 === 2.0 / 2011-08-26
 
 * Incompatibility

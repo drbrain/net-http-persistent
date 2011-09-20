@@ -779,6 +779,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     assert c.use_ssl?
     assert_equal OpenSSL::SSL::VERIFY_PEER, c.verify_mode
+    assert_kind_of OpenSSL::X509::Store,    c.cert_store
     assert_nil c.verify_callback
   end
 
