@@ -549,15 +549,13 @@ class Net::HTTP::Persistent
       connection.key  = @private_key
     end
 
-    connection.cert_store = @cert_store if @cert_store
-
-    connection.verify_mode = @verify_mode
-
-    connection.cert_store ||= begin
-      store = OpenSSL::X509::Store.new
-      store.set_default_paths
-      store
-    end
+    connection.cert_store = if @cert_store then
+                              @cert_store
+                            else
+                              store = OpenSSL::X509::Store.new
+                              store.set_default_paths
+                              store
+                            end
   end
 
 end
