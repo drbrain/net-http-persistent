@@ -2,7 +2,9 @@
 
 * Minor Enhancement
   * For HTTPS connections, SSL sessions are now reused avoiding the extra
-    round trips and computations of extra SSL handshakes.
+    round trips and computations of extra SSL handshakes.  If you have
+    problems with SSL session reuse it can be disabled by
+    Net::HTTP::Persistent#reuse_ssl_sessions
 
 === 2.0 / 2011-08-26
 

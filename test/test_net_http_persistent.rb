@@ -256,6 +256,15 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     refute_includes conns.keys, 'example:80'
   end
 
+  def test_connection_for_no_ssl_reuse
+    @http.reuse_ssl_sessions = false
+    @http.open_timeout = 123
+    @http.read_timeout = 321
+    c = @http.connection_for @uri
+
+    assert_instance_of Net::HTTP, c
+  end
+
   def test_connection_for_proxy
     uri = URI.parse 'http://proxy.example'
     uri.user     = 'johndoe'

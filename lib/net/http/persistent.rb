@@ -136,6 +136,15 @@ class Net::HTTP::Persistent
   attr_reader :request_key # :nodoc:
 
   ##
+  # By default SSL sessions are reused to avoid extra SSL handshakes.  Set
+  # this to false if you have problems communicating with an HTTPS server
+  # like:
+  #
+  #   SSL_connect [...] read finished A: unexpected message (OpenSSL::SSL::SSLError)
+
+  attr_accessor :reuse_ssl_sessions
+
+  ##
   # An array of options for Socket#setsockopt.
   #
   # By default the TCP_NODELAY option is set on sockets.
@@ -230,12 +239,13 @@ class Net::HTTP::Persistent
     key = ['net_http_persistent', name, 'requests'].compact.join '_'
     @request_key    = key.intern
 
-    @certificate     = nil
-    @ca_file         = nil
-    @private_key     = nil
-    @verify_callback = nil
-    @verify_mode     = nil
-    @cert_store      = nil
+    @certificate        = nil
+    @ca_file            = nil
+    @private_key        = nil
+    @verify_callback    = nil
+    @verify_mode        = nil
+    @cert_store         = nil
+    @reuse_ssl_sessions = true
 
     @retry_change_requests = false
   end
@@ -258,8 +268,7 @@ class Net::HTTP::Persistent
     end
 
     unless connection = connections[connection_id] then
-      connections[connection_id] =
-        Net::HTTP::Persistent::SSLReuse.new(*net_http_args)
+      connections[connection_id] = http_class.new(*net_http_args)
       connection = connections[connection_id]
       ssl connection if uri.scheme.downcase == 'https'
     end
@@ -313,6 +322,10 @@ class Net::HTTP::Persistent
 
     connection.finish
   rescue IOError
+  end
+
+  def http_class # :nodoc:
+    @reuse_ssl_sessions ? Net::HTTP::Persistent::SSLReuse : Net::HTTP
   end
 
   ##
