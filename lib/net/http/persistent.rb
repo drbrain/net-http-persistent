@@ -149,7 +149,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent you are using
 
-  VERSION = '2.2'
+  VERSION = '2.3'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -425,10 +425,13 @@ class Net::HTTP::Persistent
   # this connection
 
   def error_message connection
-    requests =
-      Thread.current[@request_key][connection.object_id]
+    requests = Thread.current[@request_key][connection.object_id] - 1 # fixup
+    last_use = Thread.current[@timeout_key][connection.object_id]
 
-    "after #{requests} requests on #{connection.object_id}"
+    age = Time.now - last_use
+
+    "after #{requests} requests on #{connection.object_id}, " \
+      "last used #{age} seconds ago"
   end
 
   ##

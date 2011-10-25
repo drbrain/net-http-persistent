@@ -348,9 +348,12 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def test_error_message
     c = basic_connection
+    touts[c.object_id] = Time.now - 1
     reqs[c.object_id] = 5
 
-    assert_equal "after 5 requests on #{c.object_id}", @http.error_message(c)
+    message = @http.error_message(c)
+    assert_match %r%after 4 requests on #{c.object_id}%, message
+    assert_match %r%, last used [\d.]+ seconds ago%, message
   end
 
   def test_escape

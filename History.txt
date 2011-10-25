@@ -1,6 +1,12 @@
-=== 2.2 / 2011-10-24
+=== 2.3 / 2011-10-25
 
 * Minor Enhancement
+  * The time since last use for a connection is now recorded in error
+    messages for the connection.
+
+=== 2.2 / 2011-10-24
+
+* Minor Enhancements
   * Added timeouts for idle connections which are set through #idle_timeout.
     The default timeout is 5 seconds.  Reducing the idle timeout is preferred
     over setting #retry_change_requests to true if you wish to avoid the "too
