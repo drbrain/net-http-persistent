@@ -13,7 +13,7 @@ Creating a new HTTP connection for every request involves an extra TCP
 round-trip and causes TCP congestion avoidance negotiation to start over.
 
 Net::HTTP supports persistent connections with some API methods but does not
-handle reconnection gracefully.  net-http-persistent supports reconnection
+handle reconnection gracefully.  Net::HTTP::Persistent supports reconnection
 and retry according to RFC 2616.
 
 == FEATURES/PROBLEMS:

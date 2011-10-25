@@ -1,3 +1,12 @@
+=== 2.2 / ??
+
+* Minor Enhancement
+  * Added timeouts for idle connections which are set through #idle_timeout.
+    The default timeout is 5 seconds.  Reducing the idle timeout is preferred
+    over setting #retry_change_requests to true if you wish to avoid the "too
+    many connection resets" error when POSTing data.
+  * Documented tunables and settings in one place in Net::HTTP::Persistent
+
 === 2.1 / 2011-09-19
 
 * Minor Enhancement

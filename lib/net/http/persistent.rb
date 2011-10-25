@@ -28,22 +28,128 @@ end
 #
 # Example:
 #
-#   uri = URI.parse 'http://example.com/awesome/web/service'
-#   http = Net::HTTP::Persistent.new
-#   stuff = http.request uri # performs a GET
+#   require 'net/http/persistent'
 #
-#   # perform a POST
+#   uri = URI 'http://example.com/awesome/web/service'
+#
+#   http = Net::HTTP::Persistent.new 'my_app_name'
+#
+#   # perform a GET
+#   response = http.request uri
+#
+#   # create a POST
 #   post_uri = uri + 'create'
 #   post = Net::HTTP::Post.new post_uri.path
 #   post.set_form_data 'some' => 'cool data'
-#   http.request post_uri, post # URI is always required
+#
+#   # perform the POST, the URI is always required
+#   response http.request post_uri, post
+#
+# == SSL
+#
+# SSL connections are automatically created depending upon the scheme of the
+# URI.  SSL connections are automatically verified against the default
+# certificate store for your computer.  You can override this by changing
+# verify_mode or by specifying an alternate cert_store.
+#
+# Here are the SSL settings, see the individual methods for documentation:
+#
+# #certificate        :: This client's certificate
+# #ca_file            :: The certificate-authority
+# #cert_store         :: An SSL certificate store
+# #private_key        :: The client's SSL private key
+# #reuse_ssl_sessions :: Reuse a previously opened SSL session for a new
+#                        connection
+# #verify_callback    :: For server certificate verification
+# #verify_mode        :: How connections should be verified
+#
+# == Proxies
+#
+# A proxy can be used either by providing a URI as the second argument of
+# ::new or by giving <code>:ENV</code> as the second argument which will
+# consult environment variables.  See proxy_from_env for details.
+#
+# == Tuning
+#
+# === Segregation
+#
+# By providing an application name to ::new you can separate your connections
+# from the connections of other applications.
+#
+# === Idle Timeout
+#
+# If a connection hasn't been used for 5 seconds it will automatically be
+# reset upon the next use to avoid attempting to send to a closed connection.
+# This can be adjusted through idle_timeout.
+#
+# Reducing this value may help avoid the "too many connection resets" error
+# when sending non-idempotent requests while increasing this value will cause
+# fewer round-trips.
+#
+# === Read Timeout
+#
+# The amount of time allowed between reading two chunks from the socket.  Set
+# through #read_timeout
+#
+# === Open Timeout
+#
+# The amount of time to wait for a connection to be opened.  Set through
+# #open_timeout.
+#
+# === Socket Options
+#
+# Socket options may be set on newly-created connections.  See #socket_options
+# for details.
+#
+# === Non-Idempotent Requests
+#
+# By default non-idempotent requests will not be retried per RFC 2616.  By
+# setting retry_change_requests to true requests will automatically be retried
+# once.
+#
+# Only do this when you know that retrying a POST is safe for your
+# application and will not create duplicate resources.
+#
+# The recommended way to handle non-idempotent requests is the following:
+#
+#   require 'net/http/persistent'
+#
+#   uri = URI 'http://example.com/awesome/web/service'
+#   post_uri = uri + 'create'
+#
+#   http = Net::HTTP::Persistent.new 'my_app_name'
+#
+#   post = Net::HTTP::Post.new post_uri.path
+#   # ... fill in POST request
+#
+#   begin
+#     response = http.request post_uri, post
+#   rescue Net::HTTP::Persistent::Error
+#
+#     # POST failed, make a new request to verify the server did not process
+#     # the request
+#     exists_uri = uri + '...'
+#     response = http.get exists_uri
+#
+#     # Retry if it failed
+#     retry if response.code == '404'
+#   end
+#
+# The method of determining if the resource was created or not is unique to
+# the particular service you are using.  Of course, you will want to add
+# protection from infinite looping.
 
 class Net::HTTP::Persistent
 
   ##
-  # The version of Net::HTTP::Persistent use are using
+  # The beginning of Time
 
-  VERSION = '2.1'
+  EPOCH = Time.at 0 # :nodoc:
+
+  ##
+  # The version of Net::HTTP::Persistent you are using
+
+  VERSION = '2.2'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -92,6 +198,12 @@ class Net::HTTP::Persistent
   # specific features.
 
   attr_reader :http_versions
+
+  ##
+  # Maximum time an unused connection can remain idle before being
+  # automatically closed.
+
+  attr_accessor :idle_timeout
 
   ##
   # The value sent in the Keep-Alive header.  Defaults to 30.  Not needed for
@@ -156,6 +268,11 @@ class Net::HTTP::Persistent
   attr_reader :socket_options
 
   ##
+  # Where this instance's last-use times live in the thread local variables
+
+  attr_reader :timeout_key # :nodoc:
+
+  ##
   # SSL verification callback.  Used when ca_file is set.
 
   attr_accessor :verify_callback
@@ -195,10 +312,10 @@ class Net::HTTP::Persistent
   # +proxy+ may be set to a URI::HTTP or :ENV to pick up proxy options from
   # the environment.  See proxy_from_env for details.
   #
-  # In order to use a URI for the proxy you'll need to do some extra work
-  # beyond URI.parse:
+  # In order to use a URI for the proxy you may need to do some extra work
+  # beyond URI parsing if the proxy requires a password:
   #
-  #   proxy = URI.parse 'http://proxy.example'
+  #   proxy = URI 'http://proxy.example'
   #   proxy.user     = 'AzureDiamond'
   #   proxy.password = 'hunter2'
 
@@ -229,15 +346,16 @@ class Net::HTTP::Persistent
     @keep_alive     = 30
     @open_timeout   = nil
     @read_timeout   = nil
+    @idle_timeout   = 5
     @socket_options = []
 
     @socket_options << [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1] if
       Socket.const_defined? :TCP_NODELAY
 
-    key = ['net_http_persistent', name, 'connections'].compact.join '_'
-    @connection_key = key.intern
-    key = ['net_http_persistent', name, 'requests'].compact.join '_'
-    @request_key    = key.intern
+    key = ['net_http_persistent', name].compact
+    @connection_key = [key, 'connections'].join('_').intern
+    @request_key    = [key, 'requests'].join('_').intern
+    @timeout_key    = [key, 'timeouts'].join('_').intern
 
     @certificate        = nil
     @ca_file            = nil
@@ -256,6 +374,7 @@ class Net::HTTP::Persistent
   def connection_for uri
     Thread.current[@connection_key] ||= {}
     Thread.current[@request_key]    ||= Hash.new 0
+    Thread.current[@timeout_key]    ||= Hash.new EPOCH
 
     connections = Thread.current[@connection_key]
 
@@ -267,10 +386,15 @@ class Net::HTTP::Persistent
       net_http_args.concat @proxy_args
     end
 
+    connection = connections[connection_id] 
+
     unless connection = connections[connection_id] then
       connections[connection_id] = http_class.new(*net_http_args)
       connection = connections[connection_id]
       ssl connection if uri.scheme.downcase == 'https'
+    else
+      last_used = Thread.current[@timeout_key][connection.object_id]
+      reset connection unless last_used > max_age
     end
 
     unless connection.started? then
@@ -354,6 +478,13 @@ class Net::HTTP::Persistent
   end
 
   ##
+  # If a connection hasn't been used since max_age it will be reset and reused
+
+  def max_age
+    Time.now - @idle_timeout
+  end
+
+  ##
   # Adds "http://" to the String +uri+ if it is missing.
 
   def normalize_uri uri
@@ -394,7 +525,7 @@ class Net::HTTP::Persistent
 
     return nil if env_proxy.nil? or env_proxy.empty?
 
-    uri = URI.parse normalize_uri env_proxy
+    uri = URI normalize_uri env_proxy
 
     unless uri.user or uri.password then
       uri.user     = escape ENV['http_proxy_user'] || ENV['HTTP_PROXY_USER']
@@ -409,6 +540,7 @@ class Net::HTTP::Persistent
 
   def reset connection
     Thread.current[@request_key].delete connection.object_id
+    Thread.current[@timeout_key].delete connection.object_id
 
     finish connection
 
@@ -450,7 +582,6 @@ class Net::HTTP::Persistent
     begin
       Thread.current[@request_key][connection_id] += 1
       response = connection.request req, &block
-
     rescue Net::HTTPBadResponse => e
       message = error_message connection
 
@@ -478,6 +609,8 @@ class Net::HTTP::Persistent
 
       retried = true
       retry
+    ensure
+      Thread.current[@timeout_key][connection_id] = Time.now
     end
 
     @http_versions["#{uri.host}:#{uri.port}"] ||= response.http_version

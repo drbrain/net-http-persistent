@@ -120,6 +120,10 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     Thread.current[@http.request_key] ||= {}
   end
 
+  def touts
+    Thread.current[@http.timeout_key] ||= Hash.new Net::HTTP::Persistent::EPOCH
+  end
+
   def test_initialize
     assert_nil @http.proxy_uri
   end
@@ -325,6 +329,21 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert c.use_ssl?
   end
 
+  def test_connection_for_timeout
+    cached = basic_connection
+    cached.start
+    reqs[cached.object_id] = 10
+    touts[cached.object_id] = Time.now - 6
+    conns['example.com:80'] = cached
+
+    c = @http.connection_for @uri
+
+    assert c.started?
+    assert_nil reqs[c.object_id]
+
+    assert_same cached, c
+  end
+
   def test_error_message
     c = basic_connection
     reqs[c.object_id] = 5
@@ -385,6 +404,10 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal 'http://example',  @http.normalize_uri('example')
     assert_equal 'http://example',  @http.normalize_uri('http://example')
     assert_equal 'https://example', @http.normalize_uri('https://example')
+  end
+
+  def test_max_age
+    assert_in_delta Time.now - 5, @http.max_age
   end
 
   def test_pipeline
@@ -449,7 +472,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   def test_reset
     c = basic_connection
     c.start
-    reqs[c.object_id] = 5
+    touts[c.object_id] = Time.now
+    reqs[c.object_id]  = 5
 
     @http.reset c
 
@@ -457,10 +481,12 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert c.finished?
     assert c.reset?
     assert_nil reqs[c.object_id]
+    assert_equal Net::HTTP::Persistent::EPOCH, touts[c.object_id]
   end
 
   def test_reset_io_error
     c = basic_connection
+    touts[c.object_id] = Time.now
     reqs[c.object_id] = 5
 
     @http.reset c
@@ -471,6 +497,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def test_reset_host_down
     c = basic_connection
+    touts[c.object_id] = Time.now
     def c.start; raise Errno::EHOSTDOWN end
     reqs[c.object_id] = 5
 
@@ -483,6 +510,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def test_reset_refused
     c = basic_connection
+    touts[c.object_id] = Time.now
     def c.start; raise Errno::ECONNREFUSED end
     reqs[c.object_id] = 5
 
@@ -520,6 +548,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal 'keep-alive', req['connection']
     assert_equal '30',         req['keep-alive']
     assert_match %r%test ua%,  req['user-agent']
+
+    assert_in_delta Time.now, touts[c.object_id]
 
     assert_equal 1, reqs[c.object_id]
   end
@@ -608,6 +638,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def test_request_invalid_retry
     c = basic_connection
+    touts[c.object_id] = Time.now
+
     def c.request(*a)
       if defined? @called then
         Net::HTTPResponse.allocate
@@ -637,6 +669,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def test_request_reset_retry
     c = basic_connection
+    touts[c.object_id] = Time.now
     def c.request(*a)
       if defined? @called then
         Net::HTTPResponse.allocate
