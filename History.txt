@@ -1,4 +1,4 @@
-=== 2.2 / ??
+=== 2.2 / 2011-10-24
 
 * Minor Enhancement
   * Added timeouts for idle connections which are set through #idle_timeout.
