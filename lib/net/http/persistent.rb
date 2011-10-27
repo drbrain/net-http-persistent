@@ -149,7 +149,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent you are using
 
-  VERSION = '2.3'
+  VERSION = '2.3.1'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -576,8 +576,10 @@ class Net::HTTP::Persistent
       req.add_field(*pair)
     end
 
-    req.add_field 'Connection', 'keep-alive'
-    req.add_field 'Keep-Alive', @keep_alive
+    unless req['Connection'] then
+      req.add_field 'Connection', 'keep-alive'
+      req.add_field 'Keep-Alive', @keep_alive
+    end
 
     connection = connection_for uri
     connection_id = connection.object_id

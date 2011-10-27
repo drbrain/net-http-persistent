@@ -629,6 +629,23 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal 1, reqs[c.object_id]
   end
 
+  def test_request_connection
+    c = connection
+
+    request = Net::HTTP::Get.new @uri.request_uri
+    request['connection'] = 'close'
+
+    res = @http.request @uri, request
+    req = c.req
+
+    assert_kind_of Net::HTTPResponse, res
+
+    assert_kind_of Net::HTTP::Get, req
+    assert_equal '/path',      req.path
+    assert_equal 'close',      req['connection']
+    assert_equal nil,          req['keep-alive']
+  end
+
   def test_request_invalid
     c = basic_connection
     def c.request(*a) raise Errno::EINVAL, "write" end
