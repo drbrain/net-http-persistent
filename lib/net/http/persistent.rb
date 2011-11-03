@@ -386,7 +386,7 @@ class Net::HTTP::Persistent
       net_http_args.concat @proxy_args
     end
 
-    connection = connections[connection_id] 
+    connection = connections[connection_id]
 
     unless connection = connections[connection_id] then
       connections[connection_id] = http_class.new(*net_http_args)
@@ -587,6 +587,13 @@ class Net::HTTP::Persistent
     begin
       Thread.current[@request_key][connection_id] += 1
       response = connection.request req, &block
+
+      if req.connection_close? or
+         (response.http_version <= '1.0' and
+          not response.connection_keep_alive?) or
+         response.connection_close? then
+        connection.finish
+      end
     rescue Net::HTTPBadResponse => e
       message = error_message connection
 

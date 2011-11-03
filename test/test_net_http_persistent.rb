@@ -99,10 +99,12 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def connection
     c = basic_connection
+    touts[c.object_id] = Time.now
 
     def c.request(req)
       @req = req
       r = Net::HTTPResponse.allocate
+      r.instance_variable_set :@header, {}
       def r.http_version() '1.1' end
       def r.read_body() :read_body end
       yield r if block_given?
@@ -575,7 +577,10 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     c = basic_connection
     def c.request(*a)
       if defined? @called then
-        Net::HTTPResponse.allocate
+        r = Net::HTTPResponse.allocate
+        r.instance_variable_set :@header, {}
+        def r.http_version() '1.1' end
+        r
       else
         @called = true
         raise Net::HTTPBadResponse
@@ -629,7 +634,35 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal 1, reqs[c.object_id]
   end
 
-  def test_request_connection
+  def test_request_close_1_0
+    c = connection
+
+    def c.request req
+      @req = req
+      r = Net::HTTPResponse.allocate
+      r.instance_variable_set :@header, {}
+      def r.http_version() '1.0' end
+      def r.read_body() :read_body end
+      yield r if block_given?
+      r
+    end
+
+    request = Net::HTTP::Get.new @uri.request_uri
+
+    res = @http.request @uri, request
+    req = c.req
+
+    assert_kind_of Net::HTTPResponse, res
+
+    assert_kind_of Net::HTTP::Get, req
+    assert_equal '/path',      req.path
+    assert_equal 'keep-alive', req['connection']
+    assert_equal '30',         req['keep-alive']
+
+    assert c.finished?
+  end
+
+  def test_request_connection_close_request
     c = connection
 
     request = Net::HTTP::Get.new @uri.request_uri
@@ -644,6 +677,37 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal '/path',      req.path
     assert_equal 'close',      req['connection']
     assert_equal nil,          req['keep-alive']
+
+    assert c.finished?
+  end
+
+  def test_request_connection_close_response
+    c = connection
+
+    def c.request req
+      @req = req
+      r = Net::HTTPResponse.allocate
+      r.instance_variable_set :@header, {}
+      r['connection'] = 'close'
+      def r.http_version() '1.1' end
+      def r.read_body() :read_body end
+      yield r if block_given?
+      r
+    end
+
+    request = Net::HTTP::Get.new @uri.request_uri
+
+    res = @http.request @uri, request
+    req = c.req
+
+    assert_kind_of Net::HTTPResponse, res
+
+    assert_kind_of Net::HTTP::Get, req
+    assert_equal '/path',      req.path
+    assert_equal 'keep-alive', req['connection']
+    assert_equal '30',         req['keep-alive']
+
+    assert c.finished?
   end
 
   def test_request_invalid
@@ -664,7 +728,10 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     def c.request(*a)
       if defined? @called then
-        Net::HTTPResponse.allocate
+        r = Net::HTTPResponse.allocate
+        r.instance_variable_set :@header, {}
+        def r.http_version() '1.1' end
+        r
       else
         @called = true
         raise Errno::EINVAL, "write"
@@ -694,7 +761,10 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     touts[c.object_id] = Time.now
     def c.request(*a)
       if defined? @called then
-        Net::HTTPResponse.allocate
+        r = Net::HTTPResponse.allocate
+        r.instance_variable_set :@header, {}
+        def r.http_version() '1.1' end
+        r
       else
         @called = true
         raise Errno::ECONNRESET

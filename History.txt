@@ -1,3 +1,8 @@
+=== 2.3.2
+
+* Bug fix
+  * Finish connections that were closed by Net::HTTP so they can be restarted.
+
 === 2.3.1 / 2011-10-26
 
 * Bug fix
