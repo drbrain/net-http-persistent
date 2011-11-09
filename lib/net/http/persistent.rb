@@ -480,6 +480,38 @@ class Net::HTTP::Persistent
     retry_change_requests or idempotent?(req)
   end
 
+  if RUBY_VERSION > '1.9' then
+    ##
+    # Workaround for missing Net::HTTPHeader#connection_close? on Ruby 1.8
+
+    def connection_close? header
+      header.connection_close?
+    end
+
+    ##
+    # Workaround for missing Net::HTTPHeader#connection_keep_alive? on Ruby 1.8
+
+    def connection_keep_alive? header
+      header.connection_keep_alive?
+    end
+  else
+    ##
+    # Workaround for missing Net::HTTPRequest#connection_close? on Ruby 1.8
+
+    def connection_close? header
+      header['connection'] =~ /close/ or header['proxy-connection'] =~ /close/
+    end
+
+    ##
+    # Workaround for missing Net::HTTPRequest#connection_keep_alive? on Ruby
+    # 1.8
+
+    def connection_keep_alive? header
+      header['connection'] =~ /keep-alive/ or
+        header['proxy-connection'] =~ /keep-alive/
+    end
+  end
+
   ##
   # If a connection hasn't been used since max_age it will be reset and reused
 
@@ -588,10 +620,10 @@ class Net::HTTP::Persistent
       Thread.current[@request_key][connection_id] += 1
       response = connection.request req, &block
 
-      if req.connection_close? or
+      if connection_close?(req) or
          (response.http_version <= '1.0' and
-          not response.connection_keep_alive?) or
-         response.connection_close? then
+          not connection_keep_alive?(response)) or
+         connection_close?(response) then
         connection.finish
       end
     rescue Net::HTTPBadResponse => e
