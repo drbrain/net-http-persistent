@@ -63,7 +63,7 @@ class Net::HTTP::Persistent::SSLReuse < Net::HTTP
             @socket.writeline "Proxy-Authorization: Basic #{credential}"
           end
           @socket.writeline ''
-          HTTPResponse.read_new(@socket).value
+          Net::HTTPResponse.read_new(@socket).value
         end
         # Server Name Indication (SNI) RFC 3546
         s.hostname = @address if s.respond_to? :hostname=
@@ -112,7 +112,7 @@ class Net::HTTP::Persistent::SSLReuse < Net::HTTP
           @socket.writeline "Proxy-Authorization: Basic #{credential}"
         end
         @socket.writeline ''
-        HTTPResponse.read_new(@socket).value
+        Net::HTTPResponse.read_new(@socket).value
       end
       s.connect
       if @ssl_context.verify_mode != OpenSSL::SSL::VERIFY_NONE
