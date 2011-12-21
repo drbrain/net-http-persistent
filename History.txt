@@ -1,3 +1,9 @@
+=== 2.3.3
+
+* Bug fix
+  * Fix persisting SSL sessions through HTTP proxies.  Mechanize issue #178 by
+    Robert Poor.
+
 === 2.3.2
 
 * Bug fix
