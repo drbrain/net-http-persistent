@@ -983,12 +983,9 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     Object.send :const_set, :I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG, nil
 
-    out, err = capture_io do
+    assert_silent do
       @http.ssl c
     end
-
-    assert_empty out
-    assert_empty err
   ensure
     OpenSSL::SSL.send :remove_const, :VERIFY_PEER
     OpenSSL::SSL.send :const_set, :VERIFY_PEER, orig_verify_peer
