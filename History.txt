@@ -1,4 +1,4 @@
-=== 2.4
+=== 2.4 / 2012-01-31
 
 * Minor Enhancement
   * net-http-persistent now complains if OpenSSL::SSL::VERIFY_PEER is equal to
@@ -13,7 +13,7 @@
   * Fix persisting SSL sessions through HTTP proxies.  Mechanize issue #178 by
     Robert Poor, net-http-persistent issues #10, #11.
 
-=== 2.3.2
+=== 2.3.2 / 2011-12-21
 
 * Bug fix
   * Finish connections that were closed by Net::HTTP so they can be restarted.
