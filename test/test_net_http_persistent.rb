@@ -965,6 +965,35 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal OpenSSL::SSL::VERIFY_NONE, c.verify_mode
   end
 
+  def test_ssl_warning
+    orig_verify_peer = OpenSSL::SSL::VERIFY_PEER
+    OpenSSL::SSL.send :remove_const, :VERIFY_PEER
+    OpenSSL::SSL.send :const_set, :VERIFY_PEER, OpenSSL::SSL::VERIFY_NONE
+
+    c = Net::HTTP.new 'localhost', 80
+
+    out, err = capture_io do
+      @http.ssl c
+    end
+
+    assert_empty out
+
+    assert_match %r%localhost:80%, err
+    assert_match %r%I_KNOW_THAT_OPENSSL%, err
+
+    Object.send :const_set, :I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG, nil
+
+    assert_silent do
+      @http.ssl c
+    end
+  ensure
+    OpenSSL::SSL.send :remove_const, :VERIFY_PEER
+    OpenSSL::SSL.send :const_set, :VERIFY_PEER, orig_verify_peer
+    if Object.const_defined?(:I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG) then
+      Object.send :remove_const, :I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG
+    end
+  end
+
   def test_can_retry_change_requests
     get  = Net::HTTP::Get.new('/')
     post = Net::HTTP::Post.new('/')

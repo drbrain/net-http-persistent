@@ -1,4 +1,13 @@
-=== 2.3.3
+=== 2.4
+
+* Minor Enhancement
+  * net-http-persistent now complains if OpenSSL::SSL::VERIFY_PEER is equal to
+    OpenSSL::SSL::VERIFY_NONE.  If you have a platform that is broken this way
+    you must define the constant:
+
+      I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG = nil
+
+    at the top level of your application to disable the warning.
 
 * Bug fix
   * Fix persisting SSL sessions through HTTP proxies.  Mechanize issue #178 by

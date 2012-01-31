@@ -715,6 +715,33 @@ class Net::HTTP::Persistent
 
     connection.verify_mode = @verify_mode
 
+    if OpenSSL::SSL::VERIFY_PEER == OpenSSL::SSL::VERIFY_NONE and
+       not Object.const_defined?(:I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG) then
+      warn <<-WARNING
+                             !!!SECURITY WARNING!!!
+
+The SSL HTTP connection to:
+
+  #{connection.address}:#{connection.port}
+
+                           !!!MAY NOT BE VERIFIED!!!
+
+On your platform your OpenSSL implementation is broken.
+
+There is no difference between the values of VERIFY_NONE and VERIFY_PEER.
+
+This means that attempting to verify the security of SSL connections may not
+work.  This exposes you to man-in-the-middle exploits, snooping on the
+contents of your connection and other dangers to the security of your data.
+
+To disable this warning define the following constant at top-level in your
+application:
+
+  I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG = nil
+
+      WARNING
+    end
+
     if @ca_file then
       connection.ca_file = @ca_file
       connection.verify_mode = OpenSSL::SSL::VERIFY_PEER
