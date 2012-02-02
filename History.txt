@@ -1,3 +1,10 @@
+=== 2.4.1 / 2012-02-01
+
+* Bug fix
+  * When FakeWeb or WebMock are loaded SSL sessions will not be reused to
+    prevent breakage of testing frameworks.  Issue #13 by Matt Brictson, pull
+    request #14 by Zachary Scott
+
 === 2.4 / 2012-01-31
 
 * Minor Enhancement
