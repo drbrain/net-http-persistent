@@ -273,6 +273,26 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_instance_of Net::HTTP, c
   end
 
+  def test_connection_for_http_class_with_fakeweb
+    Object.send :const_set, :FakeWeb, nil
+    c = @http.connection_for @uri
+    assert_instance_of Net::HTTP, c
+  ensure
+    if Object.const_defined?(:FakeWeb) then
+      Object.send :remove_const, :FakeWeb
+    end
+  end
+
+  def test_connection_for_http_class_with_webmock
+    Object.send :const_set, :WebMock, nil
+    c = @http.connection_for @uri
+    assert_instance_of Net::HTTP, c
+  ensure
+    if Object.const_defined?(:WebMock) then
+      Object.send :remove_const, :WebMock
+    end
+  end
+
   def test_connection_for_proxy
     uri = URI.parse 'http://proxy.example'
     uri.user     = 'johndoe'

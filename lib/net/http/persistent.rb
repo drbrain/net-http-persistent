@@ -452,7 +452,12 @@ class Net::HTTP::Persistent
   end
 
   def http_class # :nodoc:
-    @reuse_ssl_sessions ? Net::HTTP::Persistent::SSLReuse : Net::HTTP
+    if [:FakeWeb, :WebMock].any? { |klass| Object.const_defined?(klass) } or
+      not @reuse_ssl_sessions then
+        Net::HTTP
+    else
+      Net::HTTP::Persistent::SSLReuse
+    end
   end
 
   ##
