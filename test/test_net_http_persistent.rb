@@ -559,6 +559,12 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_nil uri
   end
 
+  def test_reconnect_ssl
+    result = @http.reconnect_ssl
+
+    assert_equal 1, result
+  end
+
   def test_request
     @http.headers['user-agent'] = 'test ua'
     c = connection
