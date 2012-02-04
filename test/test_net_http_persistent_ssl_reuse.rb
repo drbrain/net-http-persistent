@@ -75,6 +75,7 @@ class TestNetHttpPersistentSSLReuse < MiniTest::Unit::TestCase
   def test_ssl_connection_reuse
     @http = Net::HTTP::Persistent::SSLReuse.new @host, @port
     @http.use_ssl = true
+    @http.verify_mode = OpenSSL::SSL::VERIFY_PEER
     @http.verify_callback = proc do |_, store_ctx|
       store_ctx.current_cert.to_der == @cert.to_der
     end
