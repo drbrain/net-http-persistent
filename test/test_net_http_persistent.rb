@@ -908,6 +908,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_shutdown
+    ssl_conns
     c = connection
     cs = conns
     rs = reqs
@@ -926,8 +927,11 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_shutdown_in_all_threads
+    ssl_conns
+
     t = Thread.new do
       c = connection
+      ssl_conns
       conns
       reqs
 
@@ -953,6 +957,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_shutdown_no_connections
+    ssl_conns
+
     @http.shutdown
 
     assert_nil Thread.current[@http.connection_key]
@@ -960,6 +966,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_shutdown_not_started
+    ssl_conns
+
     c = basic_connection
     def c.finish() raise IOError end
 
@@ -971,7 +979,19 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_nil Thread.current[@http.request_key]
   end
 
+  def test_shutdown_ssl
+    @uri = URI 'https://example'
+
+    @http.connection_for @uri
+
+    @http.shutdown
+
+    assert_empty ssl_conns
+  end
+
   def test_shutdown_thread
+    ssl_conns
+
     t = Thread.new do
       c = connection
       conns
@@ -1092,6 +1112,25 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     if Object.const_defined?(:I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG) then
       Object.send :remove_const, :I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG
     end
+  end
+
+  def test_ssl_cleanup
+    uri1 = URI.parse 'https://one.example'
+    uri2 = URI.parse 'https://two.example'
+
+    c1 = @http.connection_for uri1
+
+    @http.reconnect_ssl
+
+    c2 = @http.connection_for uri2
+
+    @http.ssl_cleanup @http.ssl_generation
+
+    expected = {
+      1 => { "two.example:443" => c2 }
+    }
+
+    assert_equal expected, ssl_conns
   end
 
   def test_verify_callback_equals

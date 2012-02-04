@@ -407,6 +407,7 @@ class Net::HTTP::Persistent
   # Creates a new connection for +uri+
 
   def connection_for uri
+    Thread.current[@ssl_generation_key] ||= Hash.new { |h,k| h[k] = {} }
     Thread.current[@connection_key]     ||= {}
     Thread.current[@request_key]        ||= Hash.new 0
     Thread.current[@timeout_key]        ||= Hash.new EPOCH
@@ -414,18 +415,9 @@ class Net::HTTP::Persistent
     use_ssl = uri.scheme.downcase == 'https'
 
     if use_ssl then
-      Thread.current[@ssl_generation_key] ||= Hash.new { |h,k| h[k] = {} }
-
       ssl_generation = @ssl_generation
 
-      # cleanup old SSL connections
-      (0...ssl_generation).each do |generation|
-        ssl_conns = Thread.current[@ssl_generation_key].delete generation
-
-        ssl_conns.each_value do |ssl_conn|
-          finish ssl_conn
-        end if ssl_conns
-      end
+      ssl_cleanup ssl_generation
 
       connections = Thread.current[@ssl_generation_key][ssl_generation]
     else
@@ -760,6 +752,10 @@ class Net::HTTP::Persistent
       end
     end if connections
 
+    ssl_generation = reconnect_ssl
+
+    ssl_cleanup ssl_generation
+
     thread[@connection_key] = nil
     thread[@request_key]    = nil
   end
@@ -835,6 +831,20 @@ application:
                               store.set_default_paths
                               store
                             end
+  end
+
+  ##
+  # Finishes all connections that existed before the given SSL parameter
+  # +generation+.
+
+  def ssl_cleanup generation
+    (0...ssl_generation).each do |generation|
+      ssl_conns = Thread.current[@ssl_generation_key].delete generation
+
+      ssl_conns.each_value do |ssl_conn|
+        finish ssl_conn
+      end if ssl_conns
+    end
   end
 
   ##
