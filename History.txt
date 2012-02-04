@@ -1,4 +1,4 @@
-=== 2.4.1 / 2012-02-01
+=== 2.4.1 / 2012-02-03
 
 * Bug fix
   * When FakeWeb or WebMock are loaded SSL sessions will not be reused to
