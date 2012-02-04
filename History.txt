@@ -6,6 +6,7 @@
     request #14 by Zachary Scott
   * SSL connections are reset when the SSL parameters change.
     Mechanize issue #194 by dsisnero
+  * Last-use times are now cleaned up in #shutdown.
 
 === 2.4 / 2012-01-31
 

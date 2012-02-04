@@ -918,6 +918,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     c = connection
     cs = conns
     rs = reqs
+    ts = touts
 
     orig = @http
     @http = Net::HTTP::Persistent.new 'name'
@@ -925,11 +926,17 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     orig.shutdown
 
+    @http = orig
+
     assert c.finished?
     refute c2.finished?
 
     refute_same cs, conns
     refute_same rs, reqs
+    refute_same ts, touts
+
+    assert_empty reqs
+    assert_empty touts
   end
 
   def test_shutdown_in_all_threads
@@ -1126,17 +1133,16 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     c1 = @http.connection_for uri1
 
-    @http.reconnect_ssl
+    touts[c1.object_id] = Time.now
+    reqs[c1.object_id] = 5
 
-    c2 = @http.connection_for uri2
+    @http.reconnect_ssl
 
     @http.ssl_cleanup @http.ssl_generation
 
-    expected = {
-      1 => { "two.example:443" => c2 }
-    }
-
-    assert_equal expected, ssl_conns
+    assert_empty ssl_conns
+    assert_empty touts
+    assert_empty reqs # sanity check, performed by #finish
   end
 
   def test_verify_callback_equals

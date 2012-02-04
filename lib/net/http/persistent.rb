@@ -758,6 +758,7 @@ class Net::HTTP::Persistent
 
     thread[@connection_key] = nil
     thread[@request_key]    = nil
+    thread[@timeout_key]    = nil
   end
 
   ##
@@ -843,6 +844,8 @@ application:
 
       ssl_conns.each_value do |ssl_conn|
         finish ssl_conn
+
+        Thread.current[@timeout_key].delete ssl_conn.object_id
       end if ssl_conns
     end
   end
