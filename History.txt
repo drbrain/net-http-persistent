@@ -4,6 +4,8 @@
   * When FakeWeb or WebMock are loaded SSL sessions will not be reused to
     prevent breakage of testing frameworks.  Issue #13 by Matt Brictson, pull
     request #14 by Zachary Scott
+  * SSL connections are reset when the SSL parameters change.
+    Mechanize issue #194 by dsisnero
 
 === 2.4 / 2012-01-31
 

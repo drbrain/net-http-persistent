@@ -92,6 +92,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def basic_connection
+    raise "#{@uri} is not HTTP" unless @uri.scheme.downcase == 'http'
+
     c = BasicConnection.new
     conns["#{@uri.host}:#{@uri.port}"] = c
     c
@@ -122,6 +124,17 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     Thread.current[@http.request_key] ||= {}
   end
 
+  def ssl_conns
+    Thread.current[@http.ssl_generation_key] ||= Hash.new { |h,k| h[k] = {} }
+  end
+
+  def ssl_connection generation = 0
+    raise "#{@uri} is not HTTPS" unless @uri.scheme.downcase == 'https'
+    c = BasicConnection.new
+    ssl_conns[generation]["#{@uri.host}:#{@uri.port}"] = c
+    c
+  end
+
   def touts
     Thread.current[@http.timeout_key] ||= Hash.new Net::HTTP::Persistent::EPOCH
   end
@@ -148,6 +161,27 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     http = Net::HTTP::Persistent.new nil, proxy_uri
 
     assert_equal proxy_uri, http.proxy_uri
+  end
+
+  def test_ca_file_equals
+    @http.ca_file = :ca_file
+
+    assert_equal :ca_file, @http.ca_file
+    assert_equal 1, @http.ssl_generation
+  end
+
+  def test_certificate_equals
+    @http.certificate = :cert
+
+    assert_equal :cert, @http.certificate
+    assert_equal 1, @http.ssl_generation
+  end
+
+  def test_cert_store_equals
+    @http.cert_store = :cert_store
+
+    assert_equal :cert_store, @http.cert_store
+    assert_equal 1, @http.ssl_generation
   end
 
   def test_connection_for
@@ -345,6 +379,28 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert c.use_ssl?
   end
 
+  def test_connection_for_ssl_cached
+    @uri = URI.parse 'https://example.com/path'
+
+    cached = ssl_connection 0
+
+    c = @http.connection_for @uri
+
+    assert_same cached, c
+  end
+
+  def test_connection_for_ssl_cached_reconnect
+    @uri = URI.parse 'https://example.com/path'
+
+    cached = ssl_connection
+
+    @http.reconnect_ssl
+
+    c = @http.connection_for @uri
+
+    refute_same cached, c
+  end
+
   def test_connection_for_ssl_case
     uri = URI.parse 'HTTPS://example.com/path'
     c = @http.connection_for uri
@@ -454,6 +510,13 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal 2, responses.length
     assert_equal '/1', responses.first
     assert_equal '/2', responses.last
+  end
+
+  def test_private_key_equals
+    @http.private_key = :private_key
+
+    assert_equal :private_key, @http.private_key
+    assert_equal 1, @http.ssl_generation
   end
 
   def test_proxy_from_env
@@ -1024,6 +1087,20 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert @http.can_retry?(get)
     assert @http.retry_change_requests
     assert @http.can_retry?(post)
+  end
+
+  def test_verify_callback_equals
+    @http.verify_callback = :verify_callback
+
+    assert_equal :verify_callback, @http.verify_callback
+    assert_equal 1, @http.ssl_generation
+  end
+
+  def test_verify_mode_equals
+    @http.verify_mode = :verify_mode
+
+    assert_equal :verify_mode, @http.verify_mode
+    assert_equal 1, @http.ssl_generation
   end
 
 end

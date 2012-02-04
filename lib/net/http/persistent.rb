@@ -161,19 +161,19 @@ class Net::HTTP::Persistent
   ##
   # This client's OpenSSL::X509::Certificate
 
-  attr_accessor :certificate
+  attr_reader :certificate
 
   ##
   # An SSL certificate authority.  Setting this will set verify_mode to
   # VERIFY_PEER.
 
-  attr_accessor :ca_file
+  attr_reader :ca_file
 
   ##
-  # An SSL certificate store. Setting this will override the default
-  # certificate store. See verify_mode for more information.
+  # An SSL certificate store.  Setting this will override the default
+  # certificate store.  See verify_mode for more information.
 
-  attr_accessor :cert_store
+  attr_reader :cert_store
 
   ##
   # Where this instance's connections live in the thread local variables
@@ -230,7 +230,7 @@ class Net::HTTP::Persistent
   ##
   # This client's SSL private key
 
-  attr_accessor :private_key
+  attr_reader :private_key
 
   ##
   # The URL through which requests will be proxied
@@ -268,6 +268,11 @@ class Net::HTTP::Persistent
   attr_reader :socket_options
 
   ##
+  # Where this instance's SSL connections live in the thread local variables
+
+  attr_reader :ssl_generation_key # :nodoc:
+
+  ##
   # Where this instance's last-use times live in the thread local variables
 
   attr_reader :timeout_key # :nodoc:
@@ -275,21 +280,18 @@ class Net::HTTP::Persistent
   ##
   # SSL verification callback.  Used when ca_file is set.
 
-  attr_accessor :verify_callback
+  attr_reader :verify_callback
 
   ##
   # HTTPS verify mode.  Defaults to OpenSSL::SSL::VERIFY_PEER which verifies
   # the server certificate.
   #
-  # If no certificate, ca_file or cert_store is set the default system
-  # certificate store is used.
-  #
-  # To disable server certificate validation set to OpenSSL::SSL::VERIFY_NONE,
-  # but this is a bad idea as it disables SSL protections.
+  # If no ca_file or cert_store is set the default system certificate store is
+  # used.
   #
   # You can use +verify_mode+ to override any default values.
 
-  attr_accessor :verify_mode
+  attr_reader :verify_mode
 
   ##
   # Enable retries of non-idempotent requests that change data (e.g. POST
@@ -301,6 +303,8 @@ class Net::HTTP::Persistent
   # requests to the server.
 
   attr_accessor :retry_change_requests
+
+  attr_reader :ssl_generation # :nodoc:
 
   ##
   # Creates a new Net::HTTP::Persistent.
@@ -353,9 +357,10 @@ class Net::HTTP::Persistent
       Socket.const_defined? :TCP_NODELAY
 
     key = ['net_http_persistent', name].compact
-    @connection_key = [key, 'connections'].join('_').intern
-    @request_key    = [key, 'requests'].join('_').intern
-    @timeout_key    = [key, 'timeouts'].join('_').intern
+    @connection_key     = [key, 'connections'    ].join('_').intern
+    @ssl_generation_key = [key, 'ssl_generations'].join('_').intern
+    @request_key        = [key, 'requests'       ].join('_').intern
+    @timeout_key        = [key, 'timeouts'       ].join('_').intern
 
     @certificate        = nil
     @ca_file            = nil
@@ -363,20 +368,69 @@ class Net::HTTP::Persistent
     @verify_callback    = nil
     @verify_mode        = OpenSSL::SSL::VERIFY_PEER
     @cert_store         = nil
+
+    @ssl_generation     = 0 # incremented when SSL session variables change
     @reuse_ssl_sessions = true
 
     @retry_change_requests = false
   end
 
   ##
+  # Sets this client's OpenSSL::X509::Certificate
+
+  def certificate= certificate
+    @certificate = certificate
+
+    reconnect_ssl
+  end
+
+  ##
+  # Sets the SSL certificate authority file.
+
+  def ca_file= file
+    @ca_file = file
+
+    reconnect_ssl
+  end
+
+  ##
+  # Overrides the default SSL certificate store used for verifying
+  # connections.
+
+  def cert_store= store
+    @cert_store = store
+
+    reconnect_ssl
+  end
+
+  ##
   # Creates a new connection for +uri+
 
   def connection_for uri
-    Thread.current[@connection_key] ||= {}
-    Thread.current[@request_key]    ||= Hash.new 0
-    Thread.current[@timeout_key]    ||= Hash.new EPOCH
+    Thread.current[@connection_key]     ||= {}
+    Thread.current[@request_key]        ||= Hash.new 0
+    Thread.current[@timeout_key]        ||= Hash.new EPOCH
 
-    connections = Thread.current[@connection_key]
+    use_ssl = uri.scheme.downcase == 'https'
+
+    if use_ssl then
+      Thread.current[@ssl_generation_key] ||= Hash.new { |h,k| h[k] = {} }
+
+      ssl_generation = @ssl_generation
+
+      # cleanup old SSL connections
+      (0...ssl_generation).each do |generation|
+        ssl_conns = Thread.current[@ssl_generation_key].delete generation
+
+        ssl_conns.each_value do |ssl_conn|
+          finish ssl_conn
+        end if ssl_conns
+      end
+
+      connections = Thread.current[@ssl_generation_key][ssl_generation]
+    else
+      connections = Thread.current[@connection_key]
+    end
 
     net_http_args = [uri.host, uri.port]
     connection_id = net_http_args.join ':'
@@ -391,7 +445,7 @@ class Net::HTTP::Persistent
     unless connection = connections[connection_id] then
       connections[connection_id] = http_class.new(*net_http_args)
       connection = connections[connection_id]
-      ssl connection if uri.scheme.downcase == 'https'
+      ssl connection if use_ssl
     else
       last_used = Thread.current[@timeout_key][connection.object_id]
       reset connection unless last_used > max_age
@@ -549,6 +603,15 @@ class Net::HTTP::Persistent
   end
 
   ##
+  # Sets this client's SSL private key
+
+  def private_key= key
+    @private_key = key
+
+    reconnect_ssl
+  end
+
+  ##
   # Creates a URI for an HTTP proxy server from ENV variables.
   #
   # If +HTTP_PROXY+ is set a proxy will be returned.
@@ -573,6 +636,13 @@ class Net::HTTP::Persistent
     end
 
     uri
+  end
+
+  ##
+  # Forces reconnection of SSL connections.
+
+  def reconnect_ssl
+    @ssl_generation += 1
   end
 
   ##
@@ -765,6 +835,28 @@ application:
                               store.set_default_paths
                               store
                             end
+  end
+
+  ##
+  # Sets the HTTPS verify mode.  Defaults to OpenSSL::SSL::VERIFY_PEER.
+  #
+  # Setting this to VERIFY_NONE is a VERY BAD IDEA and should NEVER be used.
+  # Securely transfer the correct certificate and update the default
+  # certificate store or set the ca file instead.
+
+  def verify_mode= verify_mode
+    @verify_mode = verify_mode
+
+    reconnect_ssl
+  end
+
+  ##
+  # SSL verification callback.
+
+  def verify_callback= callback
+    @verify_callback = callback
+
+    reconnect_ssl
   end
 
 end
