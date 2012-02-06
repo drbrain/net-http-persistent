@@ -1145,6 +1145,13 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_empty reqs # sanity check, performed by #finish
   end
 
+  def test_ssl_version_equals
+    @http.ssl_version = :ssl_version
+
+    assert_equal :ssl_version, @http.ssl_version
+    assert_equal 1, @http.ssl_generation
+  end
+
   def test_verify_callback_equals
     @http.verify_callback = :verify_callback
 

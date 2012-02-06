@@ -60,6 +60,7 @@ end
 # #private_key        :: The client's SSL private key
 # #reuse_ssl_sessions :: Reuse a previously opened SSL session for a new
 #                        connection
+# #ssl_version        :: Which specific SSL version to use
 # #verify_callback    :: For server certificate verification
 # #verify_mode        :: How connections should be verified
 #
@@ -273,6 +274,12 @@ class Net::HTTP::Persistent
   attr_reader :ssl_generation_key # :nodoc:
 
   ##
+  # SSL version to use. By default, the version would be negotiated automatically
+  # between client and server.
+
+  attr_reader :ssl_version
+
+  ##
   # Where this instance's last-use times live in the thread local variables
 
   attr_reader :timeout_key # :nodoc:
@@ -365,6 +372,7 @@ class Net::HTTP::Persistent
     @certificate        = nil
     @ca_file            = nil
     @private_key        = nil
+    @ssl_version        = nil
     @verify_callback    = nil
     @verify_mode        = OpenSSL::SSL::VERIFY_PEER
     @cert_store         = nil
@@ -785,6 +793,8 @@ class Net::HTTP::Persistent
   def ssl connection
     connection.use_ssl = true
 
+    connection.ssl_version = @ssl_version
+
     connection.verify_mode = @verify_mode
 
     if OpenSSL::SSL::VERIFY_PEER == OpenSSL::SSL::VERIFY_NONE and
@@ -848,6 +858,15 @@ application:
         Thread.current[@timeout_key].delete ssl_conn.object_id
       end if ssl_conns
     end
+  end
+
+  ##
+  # SSL version to use
+
+  def ssl_version= ssl_version
+    @ssl_version = ssl_version
+
+    reconnect_ssl
   end
 
   ##

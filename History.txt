@@ -1,6 +1,12 @@
+=== 2.5
+
+* Minor enhancement
+  * The allowed SSL version may now be set via #ssl_version.
+    Issue #16 by astera
+
 === 2.4.1 / 2012-02-03
 
-* Bug fix
+* Bug fixes
   * When FakeWeb or WebMock are loaded SSL sessions will not be reused to
     prevent breakage of testing frameworks.  Issue #13 by Matt Brictson, pull
     request #14 by Zachary Scott
@@ -10,7 +16,7 @@
 
 === 2.4 / 2012-01-31
 
-* Minor Enhancement
+* Minor enhancement
   * net-http-persistent now complains if OpenSSL::SSL::VERIFY_PEER is equal to
     OpenSSL::SSL::VERIFY_NONE.  If you have a platform that is broken this way
     you must define the constant:
