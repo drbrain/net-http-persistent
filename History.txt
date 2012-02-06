@@ -4,6 +4,10 @@
   * The allowed SSL version may now be set via #ssl_version.
     Issue #16 by astera
 
+* Bug fixes
+  * The ruby 1.8 speed monkeypatch now handles EAGAIN for windows users.
+    Issue #12 by Alwyn Schoeman
+
 === 2.4.1 / 2012-02-03
 
 * Bug fixes
