@@ -274,10 +274,12 @@ class Net::HTTP::Persistent
   attr_reader :ssl_generation_key # :nodoc:
 
   ##
-  # SSL version to use. By default, the version would be negotiated automatically
-  # between client and server.
+  # SSL version to use.
+  #
+  # By default, the version will be negotiated automatically between client
+  # and server.  Ruby 1.9 and newer only.
 
-  attr_reader :ssl_version
+  attr_reader :ssl_version if RUBY_VERSION > '1.9'
 
   ##
   # Where this instance's last-use times live in the thread local variables
@@ -793,7 +795,7 @@ class Net::HTTP::Persistent
   def ssl connection
     connection.use_ssl = true
 
-    connection.ssl_version = @ssl_version
+    connection.ssl_version = @ssl_version if @ssl_version
 
     connection.verify_mode = @verify_mode
 
@@ -867,7 +869,7 @@ application:
     @ssl_version = ssl_version
 
     reconnect_ssl
-  end
+  end if RUBY_VERSION > '1.9'
 
   ##
   # Sets the HTTPS verify mode.  Defaults to OpenSSL::SSL::VERIFY_PEER.

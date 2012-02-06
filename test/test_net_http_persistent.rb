@@ -1150,7 +1150,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     assert_equal :ssl_version, @http.ssl_version
     assert_equal 1, @http.ssl_generation
-  end
+  end if RUBY_VERSION > '1.9'
 
   def test_verify_callback_equals
     @http.verify_callback = :verify_callback
