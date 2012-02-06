@@ -29,21 +29,21 @@ The following example will make two requests to the same server.  The
 connection is kept alive between requests:
 
     require 'net/http/persistent'
-    
+
     uri = URI 'http://example.com/awesome/web/service'
-    
+
     http = Net::HTTP::Persistent.new 'my_app_name'
-    
+
     # perform a GET
     response = http.request uri
-    
+
     # create a POST
     post_uri = uri + 'create'
     post = Net::HTTP::Post.new post_uri.path
     post.set_form_data 'some' => 'cool data'
-    
+
     # perform the POST, the URI is always required
-    response http.request post_uri, post
+    response = http.request post_uri, post
 
 Please see the documentation for +Net::HTTP::Persistent+ for more information,
 including how to handle SSL connections.
