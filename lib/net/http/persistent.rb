@@ -66,9 +66,11 @@ end
 #
 # == Proxies
 #
-# A proxy can be used either by providing a URI as the second argument of
-# ::new or by giving <code>:ENV</code> as the second argument which will
-# consult environment variables.  See proxy_from_env for details.
+# A proxy can be set through #proxy= or at initialization time by providing a
+# second argument to ::new.  The proxy may be the URI of the proxy server or
+# <code>:ENV</code> which will consult environment variables.
+#
+# See #proxy= and #proxy_from_env for details.
 #
 # == Tuning
 #
@@ -97,6 +99,14 @@ end
 # The amount of time to wait for a connection to be opened.  Set through
 # #open_timeout.
 #
+# === Idle Timeout
+#
+# If a connection has not been used in this many seconds it will be reset when
+# a request would use the connection.  The default idle timeout is unlimited.
+# If you know the server's idle timeout setting this value will eliminate
+# failures from attempting non-idempotent requests on closed connections.  Set
+# through #idle_timeout.
+#
 # === Socket Options
 #
 # Socket options may be set on newly-created connections.  See #socket_options
@@ -108,8 +118,9 @@ end
 # setting retry_change_requests to true requests will automatically be retried
 # once.
 #
-# Only do this when you know that retrying a POST is safe for your
-# application and will not create duplicate resources.
+# Only do this when you know that retrying a POST or other non-idempotent
+# request is safe for your application and will not create duplicate
+# resources.
 #
 # The recommended way to handle non-idempotent requests is the following:
 #
@@ -177,17 +188,22 @@ class Net::HTTP::Persistent
   attr_reader :cert_store
 
   ##
-  # Where this instance's connections live in the thread local variables
-
-  attr_reader :connection_key # :nodoc:
-
-  ##
   # Sends debug_output to this IO via Net::HTTP#set_debug_output.
   #
   # Never use this method in production code, it causes a serious security
   # hole.
 
   attr_accessor :debug_output
+
+  ##
+  # Current connection generation
+
+  attr_reader :generation # :nodoc:
+
+  ##
+  # Where this instance's connections live in the thread local variables
+
+  attr_reader :generation_key # :nodoc:
 
   ##
   # Headers that are added to every request
@@ -269,6 +285,11 @@ class Net::HTTP::Persistent
   attr_reader :socket_options
 
   ##
+  # Current SSL connection generation
+
+  attr_reader :ssl_generation # :nodoc:
+
+  ##
   # Where this instance's SSL connections live in the thread local variables
 
   attr_reader :ssl_generation_key # :nodoc:
@@ -313,8 +334,6 @@ class Net::HTTP::Persistent
 
   attr_accessor :retry_change_requests
 
-  attr_reader :ssl_generation # :nodoc:
-
   ##
   # Creates a new Net::HTTP::Persistent.
   #
@@ -335,25 +354,8 @@ class Net::HTTP::Persistent
   def initialize name = nil, proxy = nil
     @name = name
 
-    @proxy_uri = case proxy
-                 when :ENV      then proxy_from_env
-                 when URI::HTTP then proxy
-                 when nil       then # ignore
-                 else raise ArgumentError, 'proxy must be :ENV or a URI::HTTP'
-                 end
-
-    if @proxy_uri then
-      @proxy_args = [
-        @proxy_uri.host,
-        @proxy_uri.port,
-        @proxy_uri.user,
-        @proxy_uri.password,
-      ]
-
-      @proxy_connection_id = [nil, *@proxy_args].join ':'
-    end
-
     @debug_output   = nil
+    @proxy_uri      = nil
     @headers        = {}
     @http_versions  = {}
     @keep_alive     = 30
@@ -366,7 +368,7 @@ class Net::HTTP::Persistent
       Socket.const_defined? :TCP_NODELAY
 
     key = ['net_http_persistent', name].compact
-    @connection_key     = [key, 'connections'    ].join('_').intern
+    @generation_key     = [key, 'generations'    ].join('_').intern
     @ssl_generation_key = [key, 'ssl_generations'].join('_').intern
     @request_key        = [key, 'requests'       ].join('_').intern
     @timeout_key        = [key, 'timeouts'       ].join('_').intern
@@ -379,10 +381,13 @@ class Net::HTTP::Persistent
     @verify_mode        = OpenSSL::SSL::VERIFY_PEER
     @cert_store         = nil
 
+    @generation         = 0 # incremented when proxy URI changes
     @ssl_generation     = 0 # incremented when SSL session variables change
     @reuse_ssl_sessions = true
 
     @retry_change_requests = false
+
+    self.proxy = proxy if proxy
   end
 
   ##
@@ -414,11 +419,32 @@ class Net::HTTP::Persistent
   end
 
   ##
+  # Finishes all connections on the given +thread+ that were created before
+  # the given +generation+ in the threads +generation_key+ list.
+  #
+  # See #shutdown for a bunch of scary warning about misusing this method.
+
+  def cleanup(generation, thread = Thread.current,
+              generation_key = @generation_key) # :nodoc:
+    timeouts = thread[@timeout_key]
+
+    (0...generation).each do |generation|
+      conns = thread[generation_key].delete generation
+
+      conns.each_value do |conn|
+        finish conn, thread
+
+        timeouts.delete conn.object_id if timeouts
+      end if conns
+    end
+  end
+
+  ##
   # Creates a new connection for +uri+
 
   def connection_for uri
+    Thread.current[@generation_key]     ||= Hash.new { |h,k| h[k] = {} }
     Thread.current[@ssl_generation_key] ||= Hash.new { |h,k| h[k] = {} }
-    Thread.current[@connection_key]     ||= {}
     Thread.current[@request_key]        ||= Hash.new 0
     Thread.current[@timeout_key]        ||= Hash.new EPOCH
 
@@ -431,7 +457,11 @@ class Net::HTTP::Persistent
 
       connections = Thread.current[@ssl_generation_key][ssl_generation]
     else
-      connections = Thread.current[@connection_key]
+      generation = @generation
+
+      cleanup generation
+
+      connections = Thread.current[@generation_key][generation]
     end
 
     net_http_args = [uri.host, uri.port]
@@ -500,8 +530,10 @@ class Net::HTTP::Persistent
   ##
   # Finishes the Net::HTTP +connection+
 
-  def finish connection
-    Thread.current[@request_key].delete connection.object_id
+  def finish connection, thread = Thread.current
+    if requests = thread[@request_key] then
+      requests.delete connection.object_id
+    end
 
     connection.finish
   rescue IOError
@@ -614,6 +646,41 @@ class Net::HTTP::Persistent
   end
 
   ##
+  # Sets the proxy server.  The +proxy+ may be the URI of the proxy server,
+  # the symbol +:ENV+ which will read the proxy from the environment or nil to
+  # disable use of a proxy.  See #proxy_from_env for details on setting the
+  # proxy from the environment.
+  #
+  # If the proxy URI is set after requests have been made, the next request
+  # will shut-down and re-open all connections.
+  #
+  # If you are making some requests through a proxy and others without a proxy
+  # use separate Net::Http::Persistent instances.
+
+  def proxy= proxy
+    @proxy_uri = case proxy
+                 when :ENV      then proxy_from_env
+                 when URI::HTTP then proxy
+                 when nil       then # ignore
+                 else raise ArgumentError, 'proxy must be :ENV or a URI::HTTP'
+                 end
+
+    if @proxy_uri then
+      @proxy_args = [
+        @proxy_uri.host,
+        @proxy_uri.port,
+        @proxy_uri.user,
+        @proxy_uri.password,
+      ]
+
+      @proxy_connection_id = [nil, *@proxy_args].join ':'
+    end
+
+    reconnect
+    reconnect_ssl
+  end
+
+  ##
   # Creates a URI for an HTTP proxy server from ENV variables.
   #
   # If +HTTP_PROXY+ is set a proxy will be returned.
@@ -622,7 +689,7 @@ class Net::HTTP::Persistent
   # indicated user and password unless HTTP_PROXY contains either of these in
   # the URI.
   #
-  # For Windows users lowercase ENV variables are preferred over uppercase ENV
+  # For Windows users, lowercase ENV variables are preferred over uppercase ENV
   # variables.
 
   def proxy_from_env
@@ -638,6 +705,13 @@ class Net::HTTP::Persistent
     end
 
     uri
+  end
+
+  ##
+  # Forces reconnection of HTTP connections.
+
+  def reconnect
+    @generation += 1
   end
 
   ##
@@ -753,22 +827,14 @@ class Net::HTTP::Persistent
   # best to call #shutdown in the thread at the appropriate time instead!
 
   def shutdown thread = Thread.current
-    connections = thread[@connection_key]
-
-    connections.each do |_, connection|
-      begin
-        connection.finish
-      rescue IOError
-      end
-    end if connections
+    generation = reconnect
+    cleanup generation, thread, @generation_key
 
     ssl_generation = reconnect_ssl
+    cleanup ssl_generation, thread, @ssl_generation_key
 
-    ssl_cleanup ssl_generation
-
-    thread[@connection_key] = nil
-    thread[@request_key]    = nil
-    thread[@timeout_key]    = nil
+    thread[@request_key] = nil
+    thread[@timeout_key] = nil
   end
 
   ##
@@ -850,16 +916,8 @@ application:
   # Finishes all connections that existed before the given SSL parameter
   # +generation+.
 
-  def ssl_cleanup generation
-    (0...ssl_generation).each do |generation|
-      ssl_conns = Thread.current[@ssl_generation_key].delete generation
-
-      ssl_conns.each_value do |ssl_conn|
-        finish ssl_conn
-
-        Thread.current[@timeout_key].delete ssl_conn.object_id
-      end if ssl_conns
-    end
+  def ssl_cleanup generation # :nodoc:
+    cleanup generation, Thread.current, @ssl_generation_key
   end
 
   ##

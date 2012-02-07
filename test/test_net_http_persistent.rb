@@ -95,7 +95,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     raise "#{@uri} is not HTTP" unless @uri.scheme.downcase == 'http'
 
     c = BasicConnection.new
-    conns["#{@uri.host}:#{@uri.port}"] = c
+    conns[0]["#{@uri.host}:#{@uri.port}"] = c
     c
   end
 
@@ -117,7 +117,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def conns
-    Thread.current[@http.connection_key] ||= {}
+    Thread.current[@http.generation_key] ||= Hash.new { |h,k| h[k] = {} }
   end
 
   def reqs
@@ -148,14 +148,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal 'name', http.name
   end
 
-  def test_initialize_env
-    ENV['HTTP_PROXY'] = 'proxy.example'
-    http = Net::HTTP::Persistent.new nil, :ENV
-
-    assert_equal URI.parse('http://proxy.example'), http.proxy_uri
-  end
-
-  def test_initialize_uri
+  def test_initialize_proxy
     proxy_uri = URI.parse 'http://proxy.example'
 
     http = Net::HTTP::Persistent.new nil, proxy_uri
@@ -197,8 +190,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal 123, c.open_timeout
     assert_equal 321, c.read_timeout
 
-    assert_includes conns.keys, 'example.com:80'
-    assert_same c, conns['example.com:80']
+    assert_includes conns[0].keys, 'example.com:80'
+    assert_same c, conns[0]['example.com:80']
 
     socket = c.instance_variable_get :@socket
     expected = if Socket.const_defined? :TCP_NODELAY then
@@ -213,7 +206,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   def test_connection_for_cached
     cached = basic_connection
     cached.start
-    conns['example.com:80'] = cached
+    conns[0]['example.com:80'] = cached
 
     c = @http.connection_for @uri
 
@@ -237,7 +230,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert c.started?
 
     assert_includes conns.keys, 'example.com:80'
-    assert_same c, conns['example.com:80']
+    assert_same c, conns[0]['example.com:80']
 
     socket = c.instance_variable_get :@socket
 
@@ -254,8 +247,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert c.started?
     assert_equal io, c.instance_variable_get(:@debug_output)
 
-    assert_includes conns.keys, 'example.com:80'
-    assert_same c, conns['example.com:80']
+    assert_includes conns[0].keys, 'example.com:80'
+    assert_same c, conns[0]['example.com:80']
   end
 
   def test_connection_for_finished_ssl
@@ -278,7 +271,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     cached = basic_connection
     def cached.start; raise Errno::EHOSTDOWN end
     def cached.started?; false end
-    conns['example.com:80'] = cached
+    conns[0]['example.com:80'] = cached
 
     e = assert_raises Net::HTTP::Persistent::Error do
       @http.connection_for @uri
@@ -339,16 +332,16 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert c.started?
     assert c.proxy?
 
-    assert_includes conns.keys,
+    assert_includes conns[1].keys,
                     'example.com:80:proxy.example:80:johndoe:muffins'
-    assert_same c, conns['example.com:80:proxy.example:80:johndoe:muffins']
+    assert_same c, conns[1]['example.com:80:proxy.example:80:johndoe:muffins']
   end
 
   def test_connection_for_refused
     cached = basic_connection
     def cached.start; raise Errno::ECONNREFUSED end
     def cached.started?; false end
-    conns['example.com:80'] = cached
+    conns[0]['example.com:80'] = cached
 
     e = assert_raises Net::HTTP::Persistent::Error do
       @http.connection_for @uri
@@ -414,7 +407,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     cached.start
     reqs[cached.object_id] = 10
     touts[cached.object_id] = Time.now - 6
-    conns['example.com:80'] = cached
+    conns[0]['example.com:80'] = cached
 
     c = @http.connection_for @uri
 
@@ -519,6 +512,25 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal 1, @http.ssl_generation
   end
 
+  def test_proxy_equals_env
+    ENV['HTTP_PROXY'] = 'proxy.example'
+
+    @http.proxy = :ENV
+
+    assert_equal URI.parse('http://proxy.example'), @http.proxy_uri
+
+    assert_equal 1, @http.generation, 'generation'
+    assert_equal 1, @http.ssl_generation, 'ssl_generation'
+  end
+
+  def test_proxy_equals_uri
+    proxy_uri = URI.parse 'http://proxy.example'
+
+    @http.proxy = proxy_uri
+
+    assert_equal proxy_uri, @http.proxy_uri
+  end
+
   def test_proxy_from_env
     ENV['HTTP_PROXY']      = 'proxy.example'
     ENV['HTTP_PROXY_USER'] = 'johndoe'
@@ -557,6 +569,12 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     uri = @http.proxy_from_env
 
     assert_nil uri
+  end
+
+  def test_reconnect
+    result = @http.reconnect
+
+    assert_equal 1, result
   end
 
   def test_reconnect_ssl
@@ -928,18 +946,21 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     @http = orig
 
-    assert c.finished?
-    refute c2.finished?
+    assert c.finished?, 'last-generation connection must be finished'
+    refute c2.finished?, 'present generation connection must not be finished'
 
-    refute_same cs, conns
     refute_same rs, reqs
     refute_same ts, touts
+
+    assert_empty conns
+    assert_empty ssl_conns
 
     assert_empty reqs
     assert_empty touts
   end
 
   def test_shutdown_in_all_threads
+    conns
     ssl_conns
 
     t = Thread.new do
@@ -959,23 +980,31 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     assert_nil @http.shutdown_in_all_threads
 
-    assert c.finished?
-    assert_nil Thread.current[@http.connection_key]
+    assert c.finished?, 'connection in same thread must be finished'
+
+    assert_empty Thread.current[@http.generation_key]
+
     assert_nil Thread.current[@http.request_key]
 
     t.run
-    assert t.value.finished?
-    assert_nil t[@http.connection_key]
+    assert t.value.finished?, 'connection in other thread must be finished'
+
+    assert_empty t[@http.generation_key]
+
     assert_nil t[@http.request_key]
   end
 
   def test_shutdown_no_connections
+    conns
     ssl_conns
 
     @http.shutdown
 
-    assert_nil Thread.current[@http.connection_key]
+    assert_empty Thread.current[@http.generation_key]
+    assert_empty Thread.current[@http.ssl_generation_key]
+
     assert_nil Thread.current[@http.request_key]
+    assert_nil Thread.current[@http.timeout_key]
   end
 
   def test_shutdown_not_started
@@ -984,12 +1013,15 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     c = basic_connection
     def c.finish() raise IOError end
 
-    conns["#{@uri.host}:#{@uri.port}"] = c
+    conns[0]["#{@uri.host}:#{@uri.port}"] = c
 
     @http.shutdown
 
-    assert_nil Thread.current[@http.connection_key]
+    assert_empty Thread.current[@http.generation_key]
+    assert_empty Thread.current[@http.ssl_generation_key]
+
     assert_nil Thread.current[@http.request_key]
+    assert_nil Thread.current[@http.timeout_key]
   end
 
   def test_shutdown_ssl
@@ -1003,11 +1035,11 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_shutdown_thread
-    ssl_conns
-
     t = Thread.new do
       c = connection
       conns
+      ssl_conns
+
       reqs
 
       Thread.stop
@@ -1025,8 +1057,10 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     t.run
     assert t.value.finished?
-    assert_nil t[@http.connection_key]
+    assert_empty t[@http.generation_key]
+    assert_empty t[@http.ssl_generation_key]
     assert_nil t[@http.request_key]
+    assert_nil t[@http.timeout_key]
   end
 
   def test_ssl

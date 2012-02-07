@@ -1,6 +1,7 @@
 === 2.5
 
 * Minor enhancement
+  * The proxy may be changed at any time.
   * The allowed SSL version may now be set via #ssl_version.
     Issue #16 by astera
 
@@ -8,6 +9,8 @@
   * The ruby 1.8 speed monkeypatch now handles EAGAIN for windows users.
     Issue #12 by Alwyn Schoeman
   * Fixed POST example in README.  Submitted by injekt.
+  * Fixed various bugs in the shutdown of connections especially cross-thread
+    (which you shouldn't be doing anyways).
 
 === 2.4.1 / 2012-02-03
 
