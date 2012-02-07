@@ -1,9 +1,12 @@
-=== 2.5
+=== 2.5 / 2012-02-07
 
-* Minor enhancement
+* Minor enhancements
   * The proxy may be changed at any time.
   * The allowed SSL version may now be set via #ssl_version.
     Issue #16 by astera
+  * Added Net::HTTP::Persistent#override_headers which allows overriding
+  * Net::HTTP default headers like User-Agent.  See
+    Net::HTTP::Persistent@Headers for details.  Issue #17 by andkerosine
 
 * Bug fixes
   * The ruby 1.8 speed monkeypatch now handles EAGAIN for windows users.

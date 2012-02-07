@@ -486,6 +486,16 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal 'https://example', @http.normalize_uri('https://example')
   end
 
+  def test_override_haeders
+    assert_empty @http.override_headers
+
+    @http.override_headers['User-Agent'] = 'MyCustomAgent'
+
+    expected = { 'User-Agent' => 'MyCustomAgent' }
+
+    assert_equal expected, @http.override_headers
+  end
+
   def test_pipeline
     skip 'net-http-pipeline not installed' unless defined?(Net::HTTP::Pipeline)
 
@@ -584,7 +594,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_request
-    @http.headers['user-agent'] = 'test ua'
+    @http.override_headers['user-agent'] = 'test ua'
+    @http.headers['accept'] = 'text/*'
     c = connection
 
     res = @http.request @uri
@@ -594,9 +605,12 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     assert_kind_of Net::HTTP::Get, req
     assert_equal '/path',      req.path
+
+    assert_equal 'test ua',    req['user-agent']
+    assert_match %r%text/\*%,  req['accept']
+
     assert_equal 'keep-alive', req['connection']
     assert_equal '30',         req['keep-alive']
-    assert_match %r%test ua%,  req['user-agent']
 
     assert_in_delta Time.now, touts[c.object_id]
 

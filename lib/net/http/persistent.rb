@@ -72,6 +72,17 @@ end
 #
 # See #proxy= and #proxy_from_env for details.
 #
+# == Headers
+#
+# Headers may be specified for use in every request.  #headers are appended to
+# any headers on the request.  #override_headers replace existing headers on
+# the request.
+#
+# The difference between the two can be seen in setting the User-Agent.  Using
+# <code>http.headers['User-Agent'] = 'MyUserAgent'</code> will send "Ruby,
+# MyUserAgent" while <code>http.override_headers['User-Agent'] =
+# 'MyUserAgent'</code> will send "MyUserAgent".
+#
 # == Tuning
 #
 # === Segregation
@@ -161,7 +172,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent you are using
 
-  VERSION = '2.4.1'
+  VERSION = '2.5'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -206,7 +217,7 @@ class Net::HTTP::Persistent
   attr_reader :generation_key # :nodoc:
 
   ##
-  # Headers that are added to every request
+  # Headers that are added to every request using Net::HTTP#add_field
 
   attr_reader :headers
 
@@ -243,6 +254,11 @@ class Net::HTTP::Persistent
   # Seconds to wait until a connection is opened.  See Net::HTTP#open_timeout
 
   attr_accessor :open_timeout
+
+  ##
+  # Headers that are added to every request using Net::HTTP#[]=
+
+  attr_reader :override_headers
 
   ##
   # This client's SSL private key
@@ -354,15 +370,16 @@ class Net::HTTP::Persistent
   def initialize name = nil, proxy = nil
     @name = name
 
-    @debug_output   = nil
-    @proxy_uri      = nil
-    @headers        = {}
-    @http_versions  = {}
-    @keep_alive     = 30
-    @open_timeout   = nil
-    @read_timeout   = nil
-    @idle_timeout   = 5
-    @socket_options = []
+    @debug_output     = nil
+    @proxy_uri        = nil
+    @headers          = {}
+    @override_headers = {}
+    @http_versions    = {}
+    @keep_alive       = 30
+    @open_timeout     = nil
+    @read_timeout     = nil
+    @idle_timeout     = 5
+    @socket_options   = []
 
     @socket_options << [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1] if
       Socket.const_defined? :TCP_NODELAY
@@ -755,8 +772,12 @@ class Net::HTTP::Persistent
 
     req = Net::HTTP::Get.new uri.request_uri unless req
 
-    headers.each do |pair|
+    @headers.each do |pair|
       req.add_field(*pair)
+    end
+
+    @override_headers.each do |name, value|
+      req[name] = value
     end
 
     unless req['Connection'] then
