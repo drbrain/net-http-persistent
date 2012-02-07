@@ -7,7 +7,7 @@
 * Bug fixes
   * The ruby 1.8 speed monkeypatch now handles EAGAIN for windows users.
     Issue #12 by Alwyn Schoeman
-  * Fixed POST example in README.  Submitted by inject.
+  * Fixed POST example in README.  Submitted by injekt.
 
 === 2.4.1 / 2012-02-03
 
