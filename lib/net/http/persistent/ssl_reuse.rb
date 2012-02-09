@@ -43,7 +43,6 @@ class Net::HTTP::Persistent::SSLReuse < Net::HTTP
         @ssl_context.set_params(ssl_parameters)
       end
       s = OpenSSL::SSL::SSLSocket.new(s, @ssl_context)
-      s.session = @ssl_session if @ssl_session
       s.sync_close = true
     end
     @socket = Net::BufferedIO.new(s)
@@ -65,6 +64,7 @@ class Net::HTTP::Persistent::SSLReuse < Net::HTTP
           @socket.writeline ''
           Net::HTTPResponse.read_new(@socket).value
         end
+        s.session = @ssl_session if @ssl_session
         # Server Name Indication (SNI) RFC 3546
         s.hostname = @address if s.respond_to? :hostname=
         timeout(@open_timeout) { s.connect }
@@ -85,7 +85,7 @@ class Net::HTTP::Persistent::SSLReuse < Net::HTTP
   # From ruby_1_8_7 branch r29865 including a modified
   # http://redmine.ruby-lang.org/issues/5341
 
-  def connect
+  def connect # :nodoc:
     D "opening connection to #{conn_address()}..."
     s = timeout(@open_timeout) { TCPSocket.open(conn_address(), conn_port()) }
     D "opened"
@@ -95,7 +95,6 @@ class Net::HTTP::Persistent::SSLReuse < Net::HTTP
         @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_NONE
       end
       s = OpenSSL::SSL::SSLSocket.new(s, @ssl_context)
-      s.session = @ssl_session if @ssl_session
       s.sync_close = true
     end
     @socket = Net::BufferedIO.new(s)
@@ -114,6 +113,7 @@ class Net::HTTP::Persistent::SSLReuse < Net::HTTP
         @socket.writeline ''
         Net::HTTPResponse.read_new(@socket).value
       end
+      s.session = @ssl_session if @ssl_session
       s.connect
       if @ssl_context.verify_mode != OpenSSL::SSL::VERIFY_NONE
         s.post_connection_check(@address)
