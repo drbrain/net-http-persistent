@@ -1,6 +1,6 @@
-=== 2.5.1
+=== 2.5.1 / 2012-02-10
 
-* Bug fixes
+* Bug fix
   * Reusing SSL connections with HTTP proxies now works.  Issue #15 by Paul
     Ingham and mcrmfc
 
