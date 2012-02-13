@@ -172,7 +172,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent you are using
 
-  VERSION = '2.5.1'
+  VERSION = '2.5.2'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -445,8 +445,8 @@ class Net::HTTP::Persistent
               generation_key = @generation_key) # :nodoc:
     timeouts = thread[@timeout_key]
 
-    (0...generation).each do |generation|
-      conns = thread[generation_key].delete generation
+    (0...generation).each do |old_generation|
+      conns = thread[generation_key].delete old_generation
 
       conns.each_value do |conn|
         finish conn, thread

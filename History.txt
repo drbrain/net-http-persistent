@@ -1,3 +1,8 @@
+=== 2.5.2 / 2012-02-13
+
+* Bug fix
+  * Fix variable shadowing warning.
+
 === 2.5.1 / 2012-02-10
 
 * Bug fix
