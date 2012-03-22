@@ -92,9 +92,9 @@ end
 #
 # === Idle Timeout
 #
-# If a connection hasn't been used for 5 seconds it will automatically be
+# If a connection hasn't been used for this number of seconds it will automatically be
 # reset upon the next use to avoid attempting to send to a closed connection.
-# This can be adjusted through idle_timeout.
+# The default value is 5 seconds. nil means no timeout. Set through #idle_timeout.
 #
 # Reducing this value may help avoid the "too many connection resets" error
 # when sending non-idempotent requests while increasing this value will cause
@@ -109,14 +109,6 @@ end
 #
 # The amount of time to wait for a connection to be opened.  Set through
 # #open_timeout.
-#
-# === Idle Timeout
-#
-# If a connection has not been used in this many seconds it will be reset when
-# a request would use the connection.  The default idle timeout is unlimited.
-# If you know the server's idle timeout setting this value will eliminate
-# failures from attempting non-idempotent requests on closed connections.  Set
-# through #idle_timeout.
 #
 # === Socket Options
 #
@@ -626,7 +618,7 @@ class Net::HTTP::Persistent
   # If a connection hasn't been used since max_age it will be reset and reused
 
   def max_age
-    Time.now - @idle_timeout
+    @idle_timeout.nil? ? 0 : Time.now - @idle_timeout
   end
 
   ##
