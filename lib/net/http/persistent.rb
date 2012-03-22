@@ -161,6 +161,18 @@ end
 # The method of determining if the resource was created or not is unique to
 # the particular service you are using.  Of course, you will want to add
 # protection from infinite looping.
+#
+# === Connection Termination
+#
+# If you are done using the Net::HTTP::Persistent instance you may shut down
+# all the connections in the current thread with #shutdown.  This is not
+# recommended for normal use, it should only be used when it will be several
+# minutes before you make another HTTP request.
+#
+# If you are using multiple threads, call #shutdown in each thread when the
+# thread is done making requests.  If you don't call shutdown, that's OK.
+# Ruby will automatically garbage collect and shutdown your HTTP connections
+# when the thread terminates.
 
 class Net::HTTP::Persistent
 
