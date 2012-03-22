@@ -267,6 +267,25 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_same cached, c
 
     assert_equal 0, reqs[cached.object_id],
+                 'connection reset due to timeout'
+  end
+
+  def test_connection_for_cached_expire_never
+    cached = basic_connection
+    cached.start
+    conns[0]['example.com:80'] = cached
+    reqs[cached.object_id] = 10
+    touts[cached.object_id] = Time.now # last used right now
+
+    @http.idle_timeout = nil
+
+    c = @http.connection_for @uri
+
+    assert c.started?
+
+    assert_same cached, c
+
+    assert_equal 10, reqs[cached.object_id],
                  'connection not reset due to timeout'
   end
 
@@ -511,8 +530,21 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     refute @http.idempotent? Net::HTTP::Post.new '/'
   end
 
-  def test_max_age
-    assert_in_delta Time.now - 5, @http.max_age
+  def test_expired?
+    c = basic_connection
+    touts[c.object_id] = Time.now - 11
+
+    @http.idle_timeout = 0
+    assert @http.expired?(c)
+
+    @http.idle_timeout = 10
+    assert @http.expired?(c)
+
+    @http.idle_timeout = 12
+    assert !@http.expired?(c)
+
+    @http.idle_timeout = nil
+    assert !@http.expired?(c)
   end
 
   def test_normalize_uri
