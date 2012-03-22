@@ -121,7 +121,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def reqs
-    Thread.current[@http.request_key] ||= {}
+    Thread.current[@http.request_key] ||= Hash.new 0
   end
 
   def ssl_conns
@@ -249,6 +249,41 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     assert_includes conns[0].keys, 'example.com:80'
     assert_same c, conns[0]['example.com:80']
+  end
+
+  def test_connection_for_cached_expire_always
+    cached = basic_connection
+    cached.start
+    conns[0]['example.com:80'] = cached
+    reqs[cached.object_id] = 10
+    touts[cached.object_id] = Time.now # last used right now
+
+    @http.idle_timeout = 0
+
+    c = @http.connection_for @uri
+
+    assert c.started?
+
+    assert_same cached, c
+
+    assert_equal 0, reqs[cached.object_id],
+                 'connection not reset due to timeout'
+  end
+
+  def test_connection_for_cached_expired
+    cached = basic_connection
+    cached.start
+    conns[0]['example.com:80'] = cached
+    reqs[cached.object_id] = 10
+    touts[cached.object_id] = Time.now - 3600
+
+    c = @http.connection_for @uri
+
+    assert c.started?
+
+    assert_same cached, c
+    assert_equal 0, reqs[cached.object_id],
+                 'connection not reset due to timeout'
   end
 
   def test_connection_for_finished_ssl
@@ -412,7 +447,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     c = @http.connection_for @uri
 
     assert c.started?
-    assert_nil reqs[c.object_id]
+    assert_equal 0, reqs[c.object_id]
 
     assert_same cached, c
   end
@@ -441,7 +476,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     refute c.started?
     assert c.finished?
-    assert_nil reqs[c.object_id]
+    assert_equal 0, reqs[c.object_id]
   end
 
   def test_finish_io_error
@@ -887,7 +922,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert c.started?
     assert c.finished?
     assert c.reset?
-    assert_nil reqs[c.object_id]
+    assert_equal 0, reqs[c.object_id]
     assert_equal Net::HTTP::Persistent::EPOCH, touts[c.object_id]
   end
 
