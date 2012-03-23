@@ -489,7 +489,7 @@ class Net::HTTP::Persistent
       ssl connection if use_ssl
     else
       last_used = Thread.current[@timeout_key][connection.object_id]
-      reset connection unless last_used > max_age
+      reset connection if expired? connection
     end
 
     unless connection.started? then
@@ -615,10 +615,21 @@ class Net::HTTP::Persistent
   end
 
   ##
+  # Returns true if the connection should be reset, false otherwise.
+
+  def expired? connection
+    return false if @idle_timeout.nil?
+
+    last_used = Thread.current[@timeout_key][connection.object_id]
+
+    last_used > max_age
+  end
+
+  ##
   # If a connection hasn't been used since max_age it will be reset and reused
 
   def max_age
-    @idle_timeout.nil? ? 0 : Time.now - @idle_timeout
+    Time.now - @idle_timeout
   end
 
   ##
