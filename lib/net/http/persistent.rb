@@ -92,9 +92,9 @@ end
 #
 # === Idle Timeout
 #
-# If a connection hasn't been used for 5 seconds it will automatically be
+# If a connection hasn't been used for this number of seconds it will automatically be
 # reset upon the next use to avoid attempting to send to a closed connection.
-# This can be adjusted through idle_timeout.
+# The default value is 5 seconds. nil means no timeout. Set through #idle_timeout.
 #
 # Reducing this value may help avoid the "too many connection resets" error
 # when sending non-idempotent requests while increasing this value will cause
@@ -109,14 +109,6 @@ end
 #
 # The amount of time to wait for a connection to be opened.  Set through
 # #open_timeout.
-#
-# === Idle Timeout
-#
-# If a connection has not been used in this many seconds it will be reset when
-# a request would use the connection.  The default idle timeout is unlimited.
-# If you know the server's idle timeout setting this value will eliminate
-# failures from attempting non-idempotent requests on closed connections.  Set
-# through #idle_timeout.
 #
 # === Socket Options
 #
@@ -509,7 +501,7 @@ class Net::HTTP::Persistent
       ssl connection if use_ssl
     else
       last_used = Thread.current[@timeout_key][connection.object_id]
-      reset connection unless last_used > max_age
+      reset connection if expired? connection
     end
 
     unless connection.started? then
@@ -632,6 +624,17 @@ class Net::HTTP::Persistent
       header['connection'] =~ /keep-alive/ or
         header['proxy-connection'] =~ /keep-alive/
     end
+  end
+
+  ##
+  # Returns true if the connection should be reset, false otherwise.
+
+  def expired? connection
+    return false if @idle_timeout.nil?
+
+    last_used = Thread.current[@timeout_key][connection.object_id]
+
+    last_used > max_age
   end
 
   ##
