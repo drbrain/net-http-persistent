@@ -286,25 +286,6 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_same cached, c
 
     assert_equal 10, reqs[cached.object_id],
-                 'connection not reset due to timeout'
-  end
-
-  def test_connection_for_cached_expire_never
-    cached = basic_connection
-    cached.start
-    conns[0]['example.com:80'] = cached
-    reqs[cached.object_id] = 10
-    touts[cached.object_id] = Time.now # last used right now
-
-    @http.idle_timeout = nil
-
-    c = @http.connection_for @uri
-
-    assert c.started?
-
-    assert_same cached, c
-
-    assert_equal 10, reqs[cached.object_id],
                  'connection reset despite no timeout'
   end
 
@@ -790,6 +771,10 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   def test_request_close_1_0
     c = connection
 
+    class << c
+      remove_method :request
+    end
+
     def c.request req
       @req = req
       r = Net::HTTPResponse.allocate
@@ -836,6 +821,10 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def test_request_connection_close_response
     c = connection
+
+    class << c
+      remove_method :request
+    end
 
     def c.request req
       @req = req
@@ -1045,7 +1034,6 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   def test_shutdown
     ssl_conns
     c = connection
-    cs = conns
     rs = reqs
     ts = touts
 
@@ -1274,7 +1262,6 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def test_ssl_cleanup
     uri1 = URI.parse 'https://one.example'
-    uri2 = URI.parse 'https://two.example'
 
     c1 = @http.connection_for uri1
 
