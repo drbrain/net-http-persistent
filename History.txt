@@ -1,3 +1,9 @@
+=== 2.6 / 2010-03-26
+
+* Minor enhancement
+  * Net::HTTP::Persistent#idle_timeout may be set to nil to disable expiration
+    of connections.  Pull Request #21 by Aaron Stone
+
 === 2.5.2 / 2012-02-13
 
 * Bug fix
