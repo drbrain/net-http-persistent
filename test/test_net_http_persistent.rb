@@ -506,6 +506,26 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal '+%3F', @http.escape(' ?')
   end
 
+  def test_expired_eh
+    c = basic_connection
+    touts[c.object_id] = Time.now - 11
+
+    @http.idle_timeout = 0
+    assert @http.expired? c
+
+    @http.idle_timeout = 10
+    assert @http.expired? c
+
+    @http.idle_timeout = 11
+    assert @http.expired? c
+
+    @http.idle_timeout = 12
+    refute @http.expired? c
+
+    @http.idle_timeout = nil
+    refute @http.expired? c
+  end
+
   def test_finish
     c = basic_connection
     reqs[c.object_id] = 5
@@ -549,21 +569,12 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     refute @http.idempotent? Net::HTTP::Post.new '/'
   end
 
-  def test_expired?
-    c = basic_connection
-    touts[c.object_id] = Time.now - 11
-
-    @http.idle_timeout = 0
-    assert @http.expired?(c)
-
-    @http.idle_timeout = 10
-    assert @http.expired?(c)
-
-    @http.idle_timeout = 12
-    assert !@http.expired?(c)
+  def test_max_age
+    assert_in_delta Time.now - 5, @http.max_age
 
     @http.idle_timeout = nil
-    assert !@http.expired?(c)
+
+    assert_in_delta Time.now + 1, @http.max_age
   end
 
   def test_normalize_uri

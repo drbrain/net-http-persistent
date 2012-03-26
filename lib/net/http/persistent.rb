@@ -176,7 +176,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent you are using
 
-  VERSION = '2.5.2'
+  VERSION = '2.6'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -548,6 +548,19 @@ class Net::HTTP::Persistent
   end
 
   ##
+  # Returns true if the connection should be reset due to an idle timeout,
+  # false otherwise.
+
+  def expired? connection
+    return false unless @idle_timeout
+    return true  if     @idle_timeout.zero?
+
+    last_used = Thread.current[@timeout_key][connection.object_id]
+
+    Time.now - last_used > @idle_timeout
+  end
+
+  ##
   # Finishes the Net::HTTP +connection+
 
   def finish connection, thread = Thread.current
@@ -626,15 +639,12 @@ class Net::HTTP::Persistent
   end
 
   ##
-  # Returns true if the connection should be reset, false otherwise.
+  # Deprecated in favor of #expired?
 
-  def expired? connection
-    return false if @idle_timeout.nil? # nil means never time out
-    return true if @idle_timeout == 0 # 0 means always time out
+  def max_age # :nodoc:
+    return Time.now + 1 unless @idle_timeout
 
-    last_used = Thread.current[@timeout_key][connection.object_id]
-
-    Time.now - last_used > @idle_timeout
+    Time.now - @idle_timeout
   end
 
   ##
