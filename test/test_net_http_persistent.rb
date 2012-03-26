@@ -289,6 +289,25 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
                  'connection not reset due to timeout'
   end
 
+  def test_connection_for_cached_expire_never
+    cached = basic_connection
+    cached.start
+    conns[0]['example.com:80'] = cached
+    reqs[cached.object_id] = 10
+    touts[cached.object_id] = Time.now # last used right now
+
+    @http.idle_timeout = nil
+
+    c = @http.connection_for @uri
+
+    assert c.started?
+
+    assert_same cached, c
+
+    assert_equal 10, reqs[cached.object_id],
+                 'connection reset despite no timeout'
+  end
+
   def test_connection_for_cached_expired
     cached = basic_connection
     cached.start
