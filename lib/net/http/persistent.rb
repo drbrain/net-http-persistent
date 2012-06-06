@@ -176,7 +176,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent you are using
 
-  VERSION = '2.6'
+  VERSION = '2.7'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -404,7 +404,7 @@ class Net::HTTP::Persistent
 
     @generation         = 0 # incremented when proxy URI changes
     @ssl_generation     = 0 # incremented when SSL session variables change
-    @reuse_ssl_sessions = true
+    @reuse_ssl_sessions = OpenSSL::SSL.const_defined? :Session
 
     @retry_change_requests = false
 

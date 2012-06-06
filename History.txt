@@ -1,4 +1,10 @@
-=== 2.6 / 2010-03-26
+=== 2.7 / 2012-06-06
+
+* Minor enhancement
+  * Added JRuby compatibility by default for HTTPS connections.  (JRuby lacks
+    OpenSSL::SSL::Session.)
+
+=== 2.6 / 2012-03-26
 
 * Minor enhancement
   * Net::HTTP::Persistent#idle_timeout may be set to nil to disable expiration

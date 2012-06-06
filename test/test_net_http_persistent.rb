@@ -141,11 +141,30 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def test_initialize
     assert_nil @http.proxy_uri
+
+    ssl_session_exists = OpenSSL::SSL.const_defined? :Session
+
+    assert_equal ssl_session_exists, @http.reuse_ssl_sessions
   end
 
   def test_initialize_name
     http = Net::HTTP::Persistent.new 'name'
     assert_equal 'name', http.name
+  end
+
+  def test_initialize_no_ssl_session
+    skip "OpenSSL::SSL::Session does not exist on #{RUBY_PLATFORM}" unless
+      OpenSSL::SSL.const_defined? :Session
+
+    ssl_session = OpenSSL::SSL::Session
+
+    OpenSSL::SSL.send :remove_const, :Session
+
+    http = Net::HTTP::Persistent.new
+
+    refute http.reuse_ssl_sessions
+  ensure
+    OpenSSL::SSL.const_set :Session, ssl_session if ssl_session
   end
 
   def test_initialize_proxy
