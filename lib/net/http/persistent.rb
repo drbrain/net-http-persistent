@@ -176,7 +176,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent you are using
 
-  VERSION = '2.7'
+  VERSION = '2.8'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -184,6 +184,53 @@ class Net::HTTP::Persistent
   # class.
 
   class Error < StandardError; end
+
+  ##
+  # Use this method to detect the idle timeout of the host at +uri+.  The
+  # value returned can be used to configure #idle_timeout.  +max+ controls the
+  # maximum idle timeout to detect.
+  #
+  # After
+  #
+  # Idle timeout detection is performed by creating a connection then
+  # performing a HEAD request in a loop until the connection terminates
+  # waiting one additional second per loop.
+  #
+  # NOTE:  This may not work on ruby > 1.9.
+
+  def self.detect_idle_timeout uri, max = 10
+    uri = URI uri unless URI::Generic === uri
+    uri += '/'
+
+    req = Net::HTTP::Head.new uri.request_uri
+
+    http = new 'net-http-persistent detect_idle_timeout'
+
+    connection = http.connection_for uri
+
+    sleep_time = 0
+
+    loop do
+      response = connection.request req
+
+      $stderr.puts "HEAD #{uri} => #{response.code}" if $DEBUG
+
+      unless Net::HTTPOK === response then
+        raise Error, "bad response code #{response.code} detecting idle timeout"
+      end
+
+      break if sleep_time >= max
+
+      sleep_time += 1
+
+      $stderr.puts "sleeping #{sleep_time}" if $DEBUG
+      sleep sleep_time
+    end
+  ensure
+    http.shutdown
+
+    return sleep_time unless $!
+  end
 
   ##
   # This client's OpenSSL::X509::Certificate

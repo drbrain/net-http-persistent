@@ -1,3 +1,9 @@
+=== 2.8 / 2012-06-11
+
+* Minor enhancement
+  * Added Net::HTTP::Persistent::detect_idle_timeout which can be used to
+    determine the idle timeout for a host.
+
 === 2.7 / 2012-06-06
 
 * Minor enhancement
