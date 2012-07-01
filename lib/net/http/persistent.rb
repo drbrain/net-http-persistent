@@ -555,15 +555,7 @@ class Net::HTTP::Persistent
       connection.open_timeout = @open_timeout if @open_timeout
       connection.read_timeout = @read_timeout if @read_timeout
 
-      connection.start
-
-      socket = connection.instance_variable_get :@socket
-
-      if socket then # for fakeweb
-        @socket_options.each do |option|
-          socket.io.setsockopt(*option)
-        end
-      end
+      start connection
     end
 
     connection
@@ -605,6 +597,21 @@ class Net::HTTP::Persistent
     last_used = Thread.current[@timeout_key][connection.object_id]
 
     Time.now - last_used > @idle_timeout
+  end
+
+  ##
+  # Starts the Net::HTTP +connection+
+
+  def start connection
+    connection.start
+
+    socket = connection.instance_variable_get :@socket
+
+    if socket then # for fakeweb
+      @socket_options.each do |option|
+        socket.io.setsockopt(*option)
+      end
+    end
   end
 
   ##
@@ -812,7 +819,7 @@ class Net::HTTP::Persistent
 
     finish connection
 
-    connection.start
+    start connection
   rescue Errno::ECONNREFUSED
     raise Error, "connection refused: #{connection.address}:#{connection.port}"
   rescue Errno::EHOSTDOWN
