@@ -176,7 +176,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent you are using
 
-  VERSION = '2.8'
+  VERSION = '2.8.1'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -620,7 +620,7 @@ class Net::HTTP::Persistent
   end
 
   def http_class # :nodoc:
-    if [:FakeWeb, :WebMock].any? { |klass| Object.const_defined?(klass) } or
+    if [:Artifice, :FakeWeb, :WebMock].any? { |klass| Object.const_defined?(klass) } or
       not @reuse_ssl_sessions then
         Net::HTTP
     else
