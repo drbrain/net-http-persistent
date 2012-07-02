@@ -1,3 +1,9 @@
+=== 2.8.1 / 2012-07-12
+
+* Minor enhancement
+  * When Artifice is loaded SSL sessions will not be reused to prevent breakage
+    when testing with this framework.
+
 === 2.8 / 2012-06-11
 
 * Minor enhancement

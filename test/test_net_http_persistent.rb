@@ -373,6 +373,16 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     end
   end
 
+  def test_connection_for_http_class_with_artifice
+    Object.send :const_set, :Artifice, nil
+    c = @http.connection_for @uri
+    assert_instance_of Net::HTTP, c
+  ensure
+    if Object.const_defined?(:Artifice) then
+      Object.send :remove_const, :Artifice
+    end
+  end
+
   def test_connection_for_name
     http = Net::HTTP::Persistent.new 'name'
     uri = URI.parse 'http://example/'
