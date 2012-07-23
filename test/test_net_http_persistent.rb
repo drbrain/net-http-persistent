@@ -48,6 +48,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     ENV.delete 'HTTP_PROXY_USER'
     ENV.delete 'http_proxy_pass'
     ENV.delete 'HTTP_PROXY_PASS'
+    ENV.delete 'no_proxy'
+    ENV.delete 'NO_PROXY'
 
     Net::HTTP::Persistent::SSLReuse.use_connect :test_connect
   end
@@ -141,6 +143,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def test_initialize
     assert_nil @http.proxy_uri
+
+    assert_empty @http.no_proxy
 
     ssl_session_exists = OpenSSL::SSL.const_defined? :Session
 
@@ -410,6 +414,23 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_same c, conns[1]['example.com:80:proxy.example:80:johndoe:muffins']
   end
 
+  def test_connection_for_no_proxy
+    uri = URI.parse 'http://proxy.example'
+    uri.user     = 'johndoe'
+    uri.password = 'muffins'
+    uri.query    = 'no_proxy=example.com'
+
+    http = Net::HTTP::Persistent.new nil, uri
+
+    c = http.connection_for @uri
+
+    assert c.started?
+    refute c.proxy?
+
+    assert_includes conns[1].keys, 'example.com:80'
+    assert_same c, conns[1]['example.com:80']
+  end
+
   def test_connection_for_refused
     cached = basic_connection
     def cached.start; raise Errno::ECONNREFUSED end
@@ -642,12 +663,14 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     ENV['HTTP_PROXY']      = 'proxy.example'
     ENV['HTTP_PROXY_USER'] = 'johndoe'
     ENV['HTTP_PROXY_PASS'] = 'muffins'
+    ENV['NO_PROXY']        = 'localhost,example.com'
 
     uri = @http.proxy_from_env
 
     expected = URI.parse 'http://proxy.example'
     expected.user     = 'johndoe'
     expected.password = 'muffins'
+    expected.query    = 'no_proxy=localhost%2Cexample.com'
 
     assert_equal expected, uri
   end
@@ -656,12 +679,14 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     ENV['http_proxy']      = 'proxy.example'
     ENV['http_proxy_user'] = 'johndoe'
     ENV['http_proxy_pass'] = 'muffins'
+    ENV['no_proxy']        = 'localhost,example.com'
 
     uri = @http.proxy_from_env
 
     expected = URI.parse 'http://proxy.example'
     expected.user     = 'johndoe'
     expected.password = 'muffins'
+    expected.query    = 'no_proxy=localhost%2Cexample.com'
 
     assert_equal expected, uri
   end
@@ -676,6 +701,66 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     uri = @http.proxy_from_env
 
     assert_nil uri
+  end
+
+  def test_proxy_from_env_no_proxy_star
+    uri = @http.proxy_from_env
+
+    assert_nil uri
+
+    ENV['HTTP_PROXY'] = 'proxy.example'
+    ENV['NO_PROXY'] = '*'
+
+    uri = @http.proxy_from_env
+
+    assert_nil uri
+  end
+
+  def test_proxy_bypass
+    ENV['HTTP_PROXY'] = 'proxy.example'
+    ENV['NO_PROXY'] = 'localhost,example.com:80'
+
+    @http.proxy = :ENV
+
+    assert @http.proxy_bypass? 'localhost', 80
+    assert @http.proxy_bypass? 'localhost', 443
+    assert @http.proxy_bypass? 'LOCALHOST', 80
+    assert @http.proxy_bypass? 'example.com', 80
+    refute @http.proxy_bypass? 'example.com', 443
+    assert @http.proxy_bypass? 'www.example.com', 80
+    refute @http.proxy_bypass? 'www.example.com', 443
+    assert @http.proxy_bypass? 'endingexample.com', 80
+    refute @http.proxy_bypass? 'example.org', 80
+  end
+
+  def test_proxy_bypass_space
+    ENV['HTTP_PROXY'] = 'proxy.example'
+    ENV['NO_PROXY'] = 'localhost, example.com'
+
+    @http.proxy = :ENV
+
+    assert @http.proxy_bypass? 'example.com', 80
+    refute @http.proxy_bypass? 'example.org', 80
+  end
+
+  def test_proxy_bypass_trailing
+    ENV['HTTP_PROXY'] = 'proxy.example'
+    ENV['NO_PROXY'] = 'localhost,example.com,'
+
+    @http.proxy = :ENV
+
+    assert @http.proxy_bypass? 'example.com', 80
+    refute @http.proxy_bypass? 'example.org', 80
+  end
+
+  def test_proxy_bypass_double_comma
+    ENV['HTTP_PROXY'] = 'proxy.example'
+    ENV['NO_PROXY'] = 'localhost,,example.com'
+
+    @http.proxy = :ENV
+
+    assert @http.proxy_bypass? 'example.com', 80
+    refute @http.proxy_bypass? 'example.org', 80
   end
 
   def test_reconnect

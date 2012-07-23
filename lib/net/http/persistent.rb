@@ -322,6 +322,11 @@ class Net::HTTP::Persistent
   attr_reader :proxy_uri
 
   ##
+  # List of host suffixes which will not be proxied
+
+  attr_reader :no_proxy
+
+  ##
   # Seconds to wait until reading one block.  See Net::HTTP#read_timeout
 
   attr_accessor :read_timeout
@@ -423,6 +428,7 @@ class Net::HTTP::Persistent
 
     @debug_output     = nil
     @proxy_uri        = nil
+    @no_proxy         = []
     @headers          = {}
     @override_headers = {}
     @http_versions    = {}
@@ -535,7 +541,7 @@ class Net::HTTP::Persistent
     net_http_args = [uri.host, uri.port]
     connection_id = net_http_args.join ':'
 
-    if @proxy_uri then
+    if @proxy_uri and not proxy_bypass? uri.host, uri.port then
       connection_id << @proxy_connection_id
       net_http_args.concat @proxy_args
     end
@@ -736,8 +742,10 @@ class Net::HTTP::Persistent
   # If the proxy URI is set after requests have been made, the next request
   # will shut-down and re-open all connections.
   #
-  # If you are making some requests through a proxy and others without a proxy
-  # use separate Net::Http::Persistent instances.
+  # The +no_proxy+ query parameter can be used to specify hosts which shouldn't
+  # be reached via proxy; if set it should be a comma separated list of
+  # hostname suffixes, optionally with +:port+ appended, for example
+  # <tt>example.com,some.host:8080</tt>.
 
   def proxy= proxy
     @proxy_uri = case proxy
@@ -746,6 +754,8 @@ class Net::HTTP::Persistent
                  when nil       then # ignore
                  else raise ArgumentError, 'proxy must be :ENV or a URI::HTTP'
                  end
+
+    @no_proxy.clear
 
     if @proxy_uri then
       @proxy_args = [
@@ -756,6 +766,10 @@ class Net::HTTP::Persistent
       ]
 
       @proxy_connection_id = [nil, *@proxy_args].join ':'
+
+      if @proxy_uri.query then
+        @no_proxy = CGI.parse(@proxy_uri.query)['no_proxy'].join(',').downcase.split(',').map { |x| x.strip }.reject { |x| x.empty? }
+      end
     end
 
     reconnect
@@ -771,6 +785,12 @@ class Net::HTTP::Persistent
   # indicated user and password unless HTTP_PROXY contains either of these in
   # the URI.
   #
+  # The +NO_PROXY+ ENV variable can be used to specify hosts which shouldn't
+  # be reached via proxy; if set it should be a comma separated list of
+  # hostname suffixes, optionally with +:port+ appended, for example
+  # <tt>example.com,some.host:8080</tt>. When set to <tt>*</tt> no proxy will
+  # be returned.
+  #
   # For Windows users, lowercase ENV variables are preferred over uppercase ENV
   # variables.
 
@@ -781,12 +801,36 @@ class Net::HTTP::Persistent
 
     uri = URI normalize_uri env_proxy
 
+    env_no_proxy = ENV['no_proxy'] || ENV['NO_PROXY']
+
+    # '*' is special case for always bypass
+    return nil if env_no_proxy == '*' 
+
+    if env_no_proxy then
+      uri.query = "no_proxy=#{escape(env_no_proxy)}"
+    end 
+
     unless uri.user or uri.password then
       uri.user     = escape ENV['http_proxy_user'] || ENV['HTTP_PROXY_USER']
       uri.password = escape ENV['http_proxy_pass'] || ENV['HTTP_PROXY_PASS']
     end
 
     uri
+  end
+
+  ##
+  # Returns true when proxy should by bypassed for host.
+
+  def proxy_bypass? host, port
+    host = host.downcase
+    host_port = [host, port].join ':'
+
+    @no_proxy.each do |name|
+      return true if host[-name.length, name.length] == name or
+         host_port[-name.length, name.length] == name
+    end
+
+    false
   end
 
   ##
