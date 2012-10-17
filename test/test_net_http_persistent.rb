@@ -4,8 +4,19 @@ require 'net/http/persistent'
 require 'openssl'
 require 'stringio'
 
-class Net::HTTP
-  alias orig_connect connect
+module Net::HTTP::Persistent::TestConnect
+  def self.included mod
+    mod.send :alias_method, :orig_connect, :connect
+
+    def mod.use_connect which
+      self.send :remove_method, :connect
+      self.send :alias_method, :connect, which
+    end
+  end
+
+  def host_down_connect
+    raise Errno::EHOSTDOWN
+  end
 
   def test_connect
     unless use_ssl? then
@@ -30,42 +41,17 @@ class Net::HTTP
     @socket = Net::BufferedIO.new s
   end
 
-  def self.use_connect which
-    self.send :remove_method, :connect
-    self.send :alias_method, :connect, which
+  def refused_connect
+    raise Errno::ECONNREFUSED
   end
 end
 
+class Net::HTTP
+  include Net::HTTP::Persistent::TestConnect
+end
+
 class Net::HTTP::Persistent::SSLReuse
-  alias orig_connect connect
-
-  def test_connect
-    unless use_ssl? then
-      io = Object.new
-      def io.setsockopt(*a) @setsockopts ||= []; @setsockopts << a end
-
-      @socket = Net::BufferedIO.new io
-
-      return
-    end
-
-    io = open '/dev/null'
-    def io.setsockopt(*a) @setsockopts ||= []; @setsockopts << a end
-
-    @ssl_context ||= OpenSSL::SSL::SSLContext.new
-
-    @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER unless
-      @ssl_context.verify_mode
-
-    s = OpenSSL::SSL::SSLSocket.new io, @ssl_context
-
-    @socket = Net::BufferedIO.new s
-  end
-
-  def self.use_connect which
-    self.send :remove_method, :connect
-    self.send :alias_method, :connect, which
-  end
+  include Net::HTTP::Persistent::TestConnect
 end
 
 class TestNetHttpPersistent < MiniTest::Unit::TestCase
@@ -364,6 +350,17 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
                  'connection not reset due to timeout'
   end
 
+  def test_connection_for_refused
+    Net::HTTP.use_connect :refused_connect
+    Net::HTTP::Persistent::SSLReuse.use_connect :refused_connect
+
+    e = assert_raises Net::HTTP::Persistent::Error do
+      @http.connection_for @uri
+    end
+
+    assert_equal 'connection refused: example.com:80', e.message
+  end
+
   def test_connection_for_finished_ssl
     uri = URI.parse 'https://example.com/path'
     c = @http.connection_for uri
@@ -390,7 +387,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
       @http.connection_for @uri
     end
 
-    assert_match %r%host down%, e.message
+    assert_equal 'host down: example.com:80', e.message
   end
 
   def test_connection_for_http_class_with_fakeweb
@@ -458,6 +455,40 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_includes conns[1].keys,
                     'example.com:80:proxy.example:80:johndoe:muffins'
     assert_same c, conns[1]['example.com:80:proxy.example:80:johndoe:muffins']
+  end
+
+  def test_connection_for_proxy_host_down
+    Net::HTTP.use_connect :host_down_connect
+    Net::HTTP::Persistent::SSLReuse.use_connect :host_down_connect
+
+    uri = URI.parse 'http://proxy.example'
+    uri.user     = 'johndoe'
+    uri.password = 'muffins'
+
+    http = Net::HTTP::Persistent.new nil, uri
+
+    e = assert_raises Net::HTTP::Persistent::Error do
+      http.connection_for @uri
+    end
+
+    assert_equal 'host down: proxy.example:80', e.message
+  end
+
+  def test_connection_for_proxy_refused
+    Net::HTTP.use_connect :refused_connect
+    Net::HTTP::Persistent::SSLReuse.use_connect :refused_connect
+
+    uri = URI.parse 'http://proxy.example'
+    uri.user     = 'johndoe'
+    uri.password = 'muffins'
+
+    http = Net::HTTP::Persistent.new nil, uri
+
+    e = assert_raises Net::HTTP::Persistent::Error do
+      http.connection_for @uri
+    end
+
+    assert_equal 'connection refused: proxy.example:80', e.message
   end
 
   def test_connection_for_no_proxy

@@ -571,9 +571,15 @@ class Net::HTTP::Persistent
 
     connection
   rescue Errno::ECONNREFUSED
-    raise Error, "connection refused: #{connection.address}:#{connection.port}"
+    address = connection.proxy_address || connection.address
+    port    = connection.proxy_port    || connection.port
+
+    raise Error, "connection refused: #{address}:#{port}"
   rescue Errno::EHOSTDOWN
-    raise Error, "host down: #{connection.address}:#{connection.port}"
+    address = connection.proxy_address || connection.address
+    port    = connection.proxy_port    || connection.port
+
+    raise Error, "host down: #{address}:#{port}"
   end
 
   ##

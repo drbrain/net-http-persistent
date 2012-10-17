@@ -16,6 +16,8 @@
   * #shutdown now works even if no connections were made.  Pull Request #24 by
     James Tucker.
   * Updated test RSA key size to 1024 bits.  Bug #25 by Gunnar Wolf.
+  * The correct host:port are shown in the exception when a proxy connection
+    fails.  Bug #30 by glebtv.
 
 === 2.7 / 2012-06-06
 
