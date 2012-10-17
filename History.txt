@@ -10,7 +10,7 @@
 * Bug fixes
   * Socket options are set again following connection reset.  Pull request #28
     by cmaion.
-  * #shutdown now works even if no connections were made.  Pull Requset #24 by
+  * #shutdown now works even if no connections were made.  Pull Request #24 by
     James Tucker.
 
 === 2.7 / 2012-06-06

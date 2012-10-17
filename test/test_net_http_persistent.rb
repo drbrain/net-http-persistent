@@ -61,8 +61,9 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   class BasicConnection
-    attr_accessor :started, :finished, :address, :port
-    attr_reader :req
+    attr_accessor :started, :finished, :address, :port,
+                  :read_timeout, :open_timeout
+    attr_reader :req, :debug_output
     def initialize
       @started, @finished = 0, 0
       @address, @port = 'example.com', 80
@@ -79,6 +80,9 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     end
     def reset?
       @started == @finished + 1
+    end
+    def set_debug_output io
+      @debug_output = io
     end
     def start
       @started += 1
@@ -431,20 +435,6 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     end
 
     assert_match %r%connection refused%, e.message
-  end
-
-  def test_connection_for_socket_options
-    @http.socket_options << [Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1]
-    c = @http.connection_for @uri
-
-    socket = c.instance_variable_get :@socket
-
-    expected = []
-    expected << [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1] if
-      Socket.const_defined? :TCP_NODELAY
-    expected << [Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1]
-
-    assert_equal expected, socket.io.instance_variable_get(:@setsockopts)
   end
 
   def test_connection_for_ssl
@@ -1309,6 +1299,30 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal :ssl_version, @http.ssl_version
     assert_equal 1, @http.ssl_generation
   end if RUBY_VERSION > '1.9'
+
+  def test_start
+    c = basic_connection
+
+    @http.socket_options << [Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1]
+    @http.debug_output = $stderr
+    @http.read_timeout = 5
+    @http.open_timeout = 6
+
+    @http.start c
+
+    assert_equal $stderr, c.debug_output
+    assert_equal 5,       c.read_timeout
+    assert_equal 6,       c.open_timeout
+
+    socket = c.instance_variable_get :@socket
+
+    expected = []
+    expected << [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1] if
+      Socket.const_defined? :TCP_NODELAY
+    expected << [Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1]
+
+    assert_equal expected, socket.io.instance_variable_get(:@setsockopts)
+  end
 
   def test_verify_callback_equals
     @http.verify_callback = :verify_callback

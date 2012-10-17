@@ -561,13 +561,7 @@ class Net::HTTP::Persistent
       reset connection if expired? connection
     end
 
-    unless connection.started? then
-      connection.set_debug_output @debug_output if @debug_output
-      connection.open_timeout = @open_timeout if @open_timeout
-      connection.read_timeout = @read_timeout if @read_timeout
-
-      start connection
-    end
+    start connection unless connection.started?
 
     connection
   rescue Errno::ECONNREFUSED
@@ -614,6 +608,10 @@ class Net::HTTP::Persistent
   # Starts the Net::HTTP +connection+
 
   def start connection
+    connection.set_debug_output @debug_output if @debug_output
+    connection.open_timeout = @open_timeout if @open_timeout
+    connection.read_timeout = @read_timeout if @read_timeout
+
     connection.start
 
     socket = connection.instance_variable_get :@socket
