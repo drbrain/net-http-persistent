@@ -3,6 +3,7 @@
 * Minor enhancements
   * Added Net::HTTP::Persistent::detect_idle_timeout which can be used to
     determine the idle timeout for a host.
+  * Added NO_PROXY support.  Pull Request #31 by Laurence Rowe.
   * Added #cert and #key aliases for Net::HTTP compatibility.  Pull request
     #26 by dlee.
   * The artifice gem now disables SSL session reuse to prevent breakage of
