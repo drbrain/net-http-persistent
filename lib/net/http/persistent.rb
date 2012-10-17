@@ -506,6 +506,8 @@ class Net::HTTP::Persistent
     timeouts = thread[@timeout_key]
 
     (0...generation).each do |old_generation|
+      next unless thread[generation_key]
+
       conns = thread[generation_key].delete old_generation
 
       conns.each_value do |conn|
