@@ -237,6 +237,9 @@ class Net::HTTP::Persistent
 
   attr_reader :certificate
 
+  # For Net::HTTP parity
+  alias cert certificate
+
   ##
   # An SSL certificate authority.  Setting this will set verify_mode to
   # VERIFY_PEER.
@@ -315,6 +318,9 @@ class Net::HTTP::Persistent
   # This client's SSL private key
 
   attr_reader :private_key
+
+  # For Net::HTTP parity
+  alias key private_key
 
   ##
   # The URL through which requests will be proxied
@@ -466,6 +472,9 @@ class Net::HTTP::Persistent
 
     reconnect_ssl
   end
+
+  # For Net::HTTP parity
+  alias cert= certificate=
 
   ##
   # Sets the SSL certificate authority file.
@@ -726,6 +735,9 @@ class Net::HTTP::Persistent
 
     reconnect_ssl
   end
+
+  # For Net::HTTP parity
+  alias key= private_key=
 
   ##
   # Sets the proxy server.  The +proxy+ may be the URI of the proxy server,
