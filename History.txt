@@ -1,8 +1,10 @@
-=== 2.8 / 2012-06-11
+=== 2.8 / 2012-10-17
 
-* Minor enhancement
+* Minor enhancements
   * Added Net::HTTP::Persistent::detect_idle_timeout which can be used to
     determine the idle timeout for a host.
+  * Added #cert and #key aliases for Net::HTTP compatibility.  Pull request
+    #26 by dlee.
 
 === 2.7 / 2012-06-06
 
