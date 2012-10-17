@@ -5,6 +5,8 @@
     determine the idle timeout for a host.
   * Added #cert and #key aliases for Net::HTTP compatibility.  Pull request
     #26 by dlee.
+  * The artifice gem now disables SSL session reuse to prevent breakage of
+    testing frameworks.  Pull Request #29 by Christopher Cooke.
 
 === 2.7 / 2012-06-06
 
