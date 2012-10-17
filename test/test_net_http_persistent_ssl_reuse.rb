@@ -19,7 +19,7 @@ class TestNetHttpPersistentSSLReuse < MiniTest::Unit::TestCase
   end
 
   def setup
-    @name = OpenSSL::X509::Name.parse 'CN=localhost'
+    @name = OpenSSL::X509::Name.parse 'CN=localhost/DC=localdomain'
 
     @key = OpenSSL::PKey::RSA.new 512
 
@@ -30,6 +30,9 @@ class TestNetHttpPersistentSSLReuse < MiniTest::Unit::TestCase
     @cert.not_after = Time.now + 300
     @cert.public_key = @key.public_key
     @cert.subject = @name
+    @cert.issuer = @name
+
+    @cert.sign @key, OpenSSL::Digest::SHA1.new
 
     @host = 'localhost'
     @port = 10082
@@ -73,12 +76,14 @@ class TestNetHttpPersistentSSLReuse < MiniTest::Unit::TestCase
   end
 
   def test_ssl_connection_reuse
+    store = OpenSSL::X509::Store.new
+    store.add_cert @cert
+
     @http = Net::HTTP::Persistent::SSLReuse.new @host, @port
+    @http.cert_store = store
+    @http.ssl_version = :SSLv3
     @http.use_ssl = true
     @http.verify_mode = OpenSSL::SSL::VERIFY_PEER
-    @http.verify_callback = proc do |_, store_ctx|
-      store_ctx.current_cert.to_der == @cert.to_der
-    end
 
     @http.start
     @http.get '/'
