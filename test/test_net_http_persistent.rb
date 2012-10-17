@@ -4,6 +4,38 @@ require 'net/http/persistent'
 require 'openssl'
 require 'stringio'
 
+class Net::HTTP
+  alias orig_connect connect
+
+  def test_connect
+    unless use_ssl? then
+      io = Object.new
+      def io.setsockopt(*a) @setsockopts ||= []; @setsockopts << a end
+
+      @socket = Net::BufferedIO.new io
+
+      return
+    end
+
+    io = open '/dev/null'
+    def io.setsockopt(*a) @setsockopts ||= []; @setsockopts << a end
+
+    @ssl_context ||= OpenSSL::SSL::SSLContext.new
+
+    @ssl_context.verify_mode = OpenSSL::SSL::VERIFY_PEER unless
+      @ssl_context.verify_mode
+
+    s = OpenSSL::SSL::SSLSocket.new io, @ssl_context
+
+    @socket = Net::BufferedIO.new s
+  end
+
+  def self.use_connect which
+    self.send :remove_method, :connect
+    self.send :alias_method, :connect, which
+  end
+end
+
 class Net::HTTP::Persistent::SSLReuse
   alias orig_connect connect
 
@@ -39,7 +71,14 @@ end
 class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def setup
+    @http_class = if RUBY_VERSION > '2.0' then
+                    Net::HTTP
+                  else
+                    Net::HTTP::Persistent::SSLReuse
+                  end
+
     @http = Net::HTTP::Persistent.new
+
     @uri  = URI.parse 'http://example.com/path'
 
     ENV.delete 'http_proxy'
@@ -51,6 +90,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     ENV.delete 'no_proxy'
     ENV.delete 'NO_PROXY'
 
+    Net::HTTP.use_connect :test_connect
     Net::HTTP::Persistent::SSLReuse.use_connect :test_connect
   end
 
@@ -59,6 +99,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
       Thread.current[key] = nil
     end
 
+    Net::HTTP.use_connect :orig_connect
     Net::HTTP::Persistent::SSLReuse.use_connect :orig_connect
   end
 
@@ -209,7 +250,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     @http.read_timeout = 321
     c = @http.connection_for @uri
 
-    assert_kind_of Net::HTTP::Persistent::SSLReuse, c
+    assert_kind_of @http_class, c
 
     assert c.started?
     refute c.proxy?
@@ -219,15 +260,6 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     assert_includes conns[0].keys, 'example.com:80'
     assert_same c, conns[0]['example.com:80']
-
-    socket = c.instance_variable_get :@socket
-    expected = if Socket.const_defined? :TCP_NODELAY then
-                 [[Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1]]
-               else
-                 []
-               end
-
-    assert_equal expected, socket.io.instance_variable_get(:@setsockopts)
   end
 
   def test_connection_for_cached

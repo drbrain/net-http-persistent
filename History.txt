@@ -8,6 +8,8 @@
     #26 by dlee.
   * The artifice gem now disables SSL session reuse to prevent breakage of
     testing frameworks.  Pull Request #29 by Christopher Cooke.
+  * Disabled Net::HTTP::Persistent::SSLReuse on Ruby 2+.  This feature is now
+    built-in to Net::HTTP.
 * Bug fixes
   * Socket options are set again following connection reset.  Pull request #28
     by cmaion.
