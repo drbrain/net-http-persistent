@@ -7,6 +7,11 @@
     #26 by dlee.
   * The artifice gem now disables SSL session reuse to prevent breakage of
     testing frameworks.  Pull Request #29 by Christopher Cooke.
+* Bug fixes
+  * Socket options are set again following connection reset.  Pull request #28
+    by cmaion.
+  * #shutdown now works even if no connections were made.  Pull Requset #24 by
+    James Tucker.
 
 === 2.7 / 2012-06-06
 
