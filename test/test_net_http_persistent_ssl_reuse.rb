@@ -21,7 +21,7 @@ class TestNetHttpPersistentSSLReuse < MiniTest::Unit::TestCase
   def setup
     @name = OpenSSL::X509::Name.parse 'CN=localhost/DC=localdomain'
 
-    @key = OpenSSL::PKey::RSA.new 512
+    @key = OpenSSL::PKey::RSA.new 1024
 
     @cert = OpenSSL::X509::Certificate.new
     @cert.version = 2

@@ -15,6 +15,7 @@
     by cmaion.
   * #shutdown now works even if no connections were made.  Pull Request #24 by
     James Tucker.
+  * Updated test RSA key size to 1024 bits.  Bug #25 by Gunnar Wolf.
 
 === 2.7 / 2012-06-06
 
