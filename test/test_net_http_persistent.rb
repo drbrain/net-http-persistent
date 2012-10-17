@@ -1123,13 +1123,10 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_shutdown_no_connections
-    conns
-    ssl_conns
-
     @http.shutdown
 
-    assert_empty Thread.current[@http.generation_key]
-    assert_empty Thread.current[@http.ssl_generation_key]
+    assert_nil Thread.current[@http.generation_key]
+    assert_nil Thread.current[@http.ssl_generation_key]
 
     assert_nil Thread.current[@http.request_key]
     assert_nil Thread.current[@http.timeout_key]
