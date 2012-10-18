@@ -569,6 +569,8 @@ class Net::HTTP::Persistent
 
     start connection unless connection.started?
 
+    connection.read_timeout = @read_timeout if @read_timeout
+
     connection
   rescue Errno::ECONNREFUSED
     address = connection.proxy_address || connection.address
@@ -622,7 +624,6 @@ class Net::HTTP::Persistent
   def start connection
     connection.set_debug_output @debug_output if @debug_output
     connection.open_timeout = @open_timeout if @open_timeout
-    connection.read_timeout = @read_timeout if @read_timeout
 
     connection.start
 

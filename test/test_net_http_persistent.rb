@@ -253,9 +253,13 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     cached.start
     conns[0]['example.com:80'] = cached
 
+    @http.read_timeout = 5
+
     c = @http.connection_for @uri
 
     assert c.started?
+
+    assert_equal 5,       c.read_timeout
 
     assert_same cached, c
   end
@@ -1453,13 +1457,11 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     @http.socket_options << [Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1]
     @http.debug_output = $stderr
-    @http.read_timeout = 5
     @http.open_timeout = 6
 
     @http.start c
 
     assert_equal $stderr, c.debug_output
-    assert_equal 5,       c.read_timeout
     assert_equal 6,       c.open_timeout
 
     socket = c.instance_variable_get :@socket

@@ -3,6 +3,8 @@
 * Minor enhancements
   * Added Net::HTTP::Persistent::detect_idle_timeout which can be used to
     determine the idle timeout for a host.
+  * The read timeout may now be updated for every request.  Issue #33 by
+    Mislav Marohnić
   * Added NO_PROXY support.  Pull Request #31 by Laurence Rowe.
   * Added #cert and #key aliases for Net::HTTP compatibility.  Pull request
     #26 by dlee.
