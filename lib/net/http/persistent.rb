@@ -910,7 +910,7 @@ class Net::HTTP::Persistent
   #
   # +req+ must be a Net::HTTPRequest subclass (see Net::HTTP for a list).
   #
-  # If there is an error and the request is idempontent according to RFC 2616
+  # If there is an error and the request is idempotent according to RFC 2616
   # it will be retried automatically.
 
   def request uri, req = nil, &block
