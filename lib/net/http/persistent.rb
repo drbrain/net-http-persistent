@@ -188,6 +188,21 @@ class Net::HTTP::Persistent
   VERSION = '2.8.1'
 
   ##
+  # Exceptions rescued for automatic retry on ruby 2.0.0.  This overlaps with
+  # the exception list for ruby 1.x.
+
+  RETRIED_EXCEPTIONS = [ # :nodoc:
+    (Net::ReadTimeout if Net.const_defined? :ReadTimeout),
+    IOError,
+    EOFError,
+    Errno::ECONNRESET,
+    Errno::ECONNABORTED,
+    Errno::EPIPE,
+    OpenSSL::SSL::SSLError,
+    Timeout::Error,
+  ].compact
+
+  ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
   # SystemCallErrors are re-raised with a human-readable message under this
   # class.
@@ -476,6 +491,9 @@ class Net::HTTP::Persistent
 
     @retry_change_requests = false
 
+    @ruby_1 = RUBY_VERSION < '2'
+    @retried_on_ruby_2 = !@ruby_1
+
     self.proxy = proxy if proxy
   end
 
@@ -688,10 +706,15 @@ class Net::HTTP::Persistent
   end
 
   ##
-  # Is the request idempotent or is retry_change_requests allowed
+  # Is the request +req+ idempotent or is retry_change_requests allowed.
+  #
+  # If +retried_on_ruby_2+ is true, true will be returned if we are on ruby,
+  # retry_change_requests is allowed and the request is not idempotent.
 
-  def can_retry? req
-    @retry_change_requests or idempotent?(req)
+  def can_retry? req, retried_on_ruby_2 = false
+    return @retry_change_requests && !idempotent?(req) if retried_on_ruby_2
+
+    @retry_change_requests || idempotent?(req)
   end
 
   if RUBY_VERSION > '1.9' then
@@ -942,10 +965,15 @@ class Net::HTTP::Persistent
 
       bad_response = true
       retry
-    rescue IOError, EOFError, Timeout::Error,
-           Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE,
-           Errno::EINVAL, Errno::ETIMEDOUT, OpenSSL::SSL::SSLError => e
+    rescue *RETRIED_EXCEPTIONS => e # retried on ruby 2
+      request_failed e, req, connection if
+        retried or not can_retry? req, @retried_on_ruby_2
 
+      reset connection
+
+      retried = true
+      retry
+    rescue Errno::EINVAL, Errno::ETIMEDOUT => e # not retried on ruby 2
       request_failed e, req, connection if retried or not can_retry? req
 
       reset connection

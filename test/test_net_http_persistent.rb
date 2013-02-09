@@ -228,17 +228,30 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     assert @http.can_retry? post
   end
-  
-  def test_can_retry_eh_idempotent
-    head = Net::HTTP::Head.new '/'
 
-    assert @http.can_retry? head
+  if RUBY_1 then
+    def test_can_retry_eh_idempotent
+      head = Net::HTTP::Head.new '/'
 
-    post = Net::HTTP::Post.new '/'
+      assert @http.can_retry? head
 
-    refute @http.can_retry? post
+      post = Net::HTTP::Post.new '/'
+
+      refute @http.can_retry? post
+    end
+  else
+    def test_can_retry_eh_idempotent
+      head = Net::HTTP::Head.new '/'
+
+      assert @http.can_retry? head
+      refute @http.can_retry? head, true
+
+      post = Net::HTTP::Post.new '/'
+
+      refute @http.can_retry? post
+    end
   end
-  
+
   def test_cert_store_equals
     @http.cert_store = :cert_store
 
@@ -912,23 +925,38 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_match %r%too many bad responses%, e.message
   end
 
-  def test_request_bad_response_retry
-    c = basic_connection
-    def c.request(*a)
-      if defined? @called then
-        r = Net::HTTPResponse.allocate
-        r.instance_variable_set :@header, {}
-        def r.http_version() '1.1' end
-        r
-      else
-        @called = true
+  if RUBY_1 then
+    def test_request_bad_response_retry
+      c = basic_connection
+      def c.request(*a)
+        if defined? @called then
+          r = Net::HTTPResponse.allocate
+          r.instance_variable_set :@header, {}
+          def r.http_version() '1.1' end
+          r
+        else
+          @called = true
+          raise Net::HTTPBadResponse
+        end
+      end
+
+      @http.request @uri
+
+      assert c.finished?
+    end
+  else
+    def test_request_bad_response_retry
+      c = basic_connection
+      def c.request(*a)
         raise Net::HTTPBadResponse
       end
+
+      assert_raises Net::HTTP::Persistent::Error do
+        @http.request @uri
+      end
+
+      assert c.finished?
     end
-
-    @http.request @uri
-
-    assert c.finished?
   end
 
   def test_request_bad_response_unsafe
@@ -1114,25 +1142,43 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_match %r%too many connection resets%, e.message
   end
 
-  def test_request_reset_retry
-    c = basic_connection
-    touts[c.object_id] = Time.now
-    def c.request(*a)
-      if defined? @called then
-        r = Net::HTTPResponse.allocate
-        r.instance_variable_set :@header, {}
-        def r.http_version() '1.1' end
-        r
-      else
-        @called = true
+  if RUBY_1 then
+    def test_request_reset_retry
+      c = basic_connection
+      touts[c.object_id] = Time.now
+      def c.request(*a)
+        if defined? @called then
+          r = Net::HTTPResponse.allocate
+          r.instance_variable_set :@header, {}
+          def r.http_version() '1.1' end
+          r
+        else
+          @called = true
+          raise Errno::ECONNRESET
+        end
+      end
+
+      @http.request @uri
+
+      assert c.reset?
+      assert c.finished?
+    end
+  else
+    def test_request_reset_retry
+      c = basic_connection
+      touts[c.object_id] = Time.now
+
+      def c.request(*a)
         raise Errno::ECONNRESET
       end
+
+      assert_raises Net::HTTP::Persistent::Error do
+        @http.request @uri
+      end
+
+      refute c.reset?
+      assert c.finished?
     end
-
-    @http.request @uri
-
-    assert c.reset?
-    assert c.finished?
   end
 
   def test_request_reset_unsafe
@@ -1252,14 +1298,25 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     refute @http.retry_change_requests
 
-    assert @http.can_retry?(get)
+    if RUBY_1 then
+      assert @http.can_retry?(get)
+    else
+      assert @http.can_retry?(get)
+    end
+    refute @http.can_retry?(get, true)
     refute @http.can_retry?(post)
 
     @http.retry_change_requests = true
 
     assert @http.retry_change_requests
 
-    assert @http.can_retry?(get)
+    if RUBY_1 then
+      assert @http.can_retry?(get)
+    else
+      assert @http.can_retry?(get)
+      refute @http.can_retry?(get, true)
+    end
+
     assert @http.can_retry?(post)
   end
 
