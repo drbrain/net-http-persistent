@@ -56,11 +56,13 @@ end
 
 class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
+  RUBY_1 = RUBY_VERSION < '2'
+
   def setup
-    @http_class = if RUBY_VERSION > '2.0' then
-                    Net::HTTP
-                  else
+    @http_class = if RUBY_1 then
                     Net::HTTP::Persistent::SSLReuse
+                  else
+                    Net::HTTP
                   end
 
     @http = Net::HTTP::Persistent.new
@@ -1470,7 +1472,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     assert_equal :ssl_version, @http.ssl_version
     assert_equal 1, @http.ssl_generation
-  end if RUBY_VERSION > '1.9'
+  end unless RUBY_1
 
   def test_start
     c = basic_connection
