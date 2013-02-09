@@ -217,6 +217,26 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal 1, @http.ssl_generation
   end
 
+  def test_can_retry_eh_idempotent
+    head = Net::HTTP::Head.new '/'
+
+    assert @http.can_retry? head
+
+    post = Net::HTTP::Post.new '/'
+
+    refute @http.can_retry? post
+  end
+  
+  def test_can_retry_eh_change_requests
+    post = Net::HTTP::Post.new '/'
+
+    refute @http.can_retry? post
+
+    @http.retry_change_requests = true
+
+    assert @http.can_retry? post
+  end
+  
   def test_cert_store_equals
     @http.cert_store = :cert_store
 

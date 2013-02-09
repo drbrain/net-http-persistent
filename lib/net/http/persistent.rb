@@ -682,7 +682,7 @@ class Net::HTTP::Persistent
   # Is the request idempotent or is retry_change_requests allowed
 
   def can_retry? req
-    retry_change_requests or idempotent?(req)
+    @retry_change_requests or idempotent?(req)
   end
 
   if RUBY_VERSION > '1.9' then
