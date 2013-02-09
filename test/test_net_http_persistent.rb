@@ -1167,6 +1167,33 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_match %r%bad write retry%, e.message
   end
 
+  def test_request_setup
+    @http.override_headers['user-agent'] = 'test ua'
+    @http.headers['accept'] = 'text/*'
+
+    input = Net::HTTP::Post.new '/path'
+
+    req = @http.request_setup input
+
+    assert_same input,         req
+    assert_equal '/path',      req.path
+
+    assert_equal 'test ua',    req['user-agent']
+    assert_match %r%text/\*%,  req['accept']
+
+    assert_equal 'keep-alive', req['connection']
+    assert_equal '30',         req['keep-alive']
+  end
+
+  def test_request_setup_uri
+    uri = @uri + '?a=b'
+
+    req = @http.request_setup uri
+
+    assert_kind_of Net::HTTP::Get, req
+    assert_equal '/path?a=b',  req.path
+  end
+
   def test_reset
     c = basic_connection
     c.start

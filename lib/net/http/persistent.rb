@@ -917,20 +917,7 @@ class Net::HTTP::Persistent
     retried      = false
     bad_response = false
 
-    req = Net::HTTP::Get.new uri.request_uri unless req
-
-    @headers.each do |pair|
-      req.add_field(*pair)
-    end
-
-    @override_headers.each do |name, value|
-      req[name] = value
-    end
-
-    unless req['Connection'] then
-      req.add_field 'Connection', 'keep-alive'
-      req.add_field 'Keep-Alive', @keep_alive
-    end
+    req = request_setup req || uri
 
     connection = connection_for uri
     connection_id = connection.object_id
@@ -987,6 +974,35 @@ class Net::HTTP::Persistent
     finish connection
 
     raise Error, "too many connection resets #{due_to} #{message}"
+  end
+
+  ##
+  # Creates a GET request if +req_or_uri+ is a URI and adds headers to the
+  # request.
+  #
+  # Returns the request.
+
+  def request_setup req_or_uri # :nodoc:
+    req = if URI === req_or_uri then
+            Net::HTTP::Get.new req_or_uri.request_uri
+          else
+            req_or_uri
+          end
+
+    @headers.each do |pair|
+      req.add_field(*pair)
+    end
+
+    @override_headers.each do |name, value|
+      req[name] = value
+    end
+
+    unless req['Connection'] then
+      req.add_field 'Connection', 'keep-alive'
+      req.add_field 'Keep-Alive', @keep_alive
+    end
+
+    req
   end
 
   ##
