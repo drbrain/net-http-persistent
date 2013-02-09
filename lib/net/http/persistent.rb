@@ -185,7 +185,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent you are using
 
-  VERSION = '2.8'
+  VERSION = '2.8.1'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -957,7 +957,7 @@ class Net::HTTP::Persistent
       retry
     rescue IOError, EOFError, Timeout::Error,
            Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE,
-           Errno::EINVAL, OpenSSL::SSL::SSLError => e
+           Errno::EINVAL, Errno::ETIMEDOUT, OpenSSL::SSL::SSLError => e
 
       request_failed e, req, connection if retried or not can_retry? req
 

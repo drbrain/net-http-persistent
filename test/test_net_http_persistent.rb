@@ -888,6 +888,18 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert_equal 1, reqs[c.object_id]
   end
 
+  def test_request_ETIMEDOUT
+    c = basic_connection
+    def c.request(*a) raise Errno::ETIMEDOUT, "timed out" end
+
+    e = assert_raises Net::HTTP::Persistent::Error do
+      @http.request @uri
+    end
+
+    assert_equal 0, reqs[c.object_id]
+    assert_match %r%too many connection resets%, e.message
+  end
+
   def test_request_bad_response
     c = basic_connection
     def c.request(*a) raise Net::HTTPBadResponse end

@@ -1,3 +1,10 @@
+=== 2.8.1
+
+* Bug fixes
+  * Explain the proper way of sending parameters depending upon the request
+    method.  Issue #35 by André Arko.
+  * Handle Errno::ETIMEDOUT by retrying the request.  Issue #36 by André Arko.
+
 === 2.8 / 2012-10-17
 
 * Minor enhancements
