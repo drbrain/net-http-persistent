@@ -37,6 +37,11 @@ end
 #   # perform a GET
 #   response = http.request uri
 #
+#   # or
+#
+#   get = Net::HTTP::Get.new uri.request_uri
+#   response = http.request get
+#
 #   # create a POST
 #   post_uri = uri + 'create'
 #   post = Net::HTTP::Post.new post_uri.path
@@ -44,6 +49,10 @@ end
 #
 #   # perform the POST, the URI is always required
 #   response http.request post_uri, post
+#
+# Note that for GET, HEAD and other requests that do not have a body you want
+# to use URI#request_uri not URI#path.  The request_uri contains the query
+# params which are sent in the body for other requests.
 #
 # == SSL
 #
@@ -950,14 +959,7 @@ class Net::HTTP::Persistent
            Errno::ECONNABORTED, Errno::ECONNRESET, Errno::EPIPE,
            Errno::EINVAL, OpenSSL::SSL::SSLError => e
 
-      if retried or not can_retry? req
-        due_to = "(due to #{e.message} - #{e.class})"
-        message = error_message connection
-
-        finish connection
-
-        raise Error, "too many connection resets #{due_to} #{message}"
-      end
+      request_failed e, req, connection if retried or not can_retry? req
 
       reset connection
 
@@ -970,6 +972,21 @@ class Net::HTTP::Persistent
     @http_versions["#{uri.host}:#{uri.port}"] ||= response.http_version
 
     response
+  end
+
+  ##
+  # Raises an Error for +exception+ which resulted from attempting the request
+  # +req+ on the +connection+.
+  #
+  # Finishes the +connection+.
+
+  def request_failed exception, req, connection # :nodoc:
+    due_to = "(due to #{exception.message} - #{exception.class})"
+    message = error_message connection
+
+    finish connection
+
+    raise Error, "too many connection resets #{due_to} #{message}"
   end
 
   ##
