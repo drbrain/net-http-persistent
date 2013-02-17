@@ -4,6 +4,7 @@
   * Explain the proper way of sending parameters depending upon the request
     method.  Issue #35 by André Arko.
   * Handle Errno::ETIMEDOUT by retrying the request.  Issue #36 by André Arko.
+  * Requests retried by ruby 2.x are no longer retried by net-http-persistent.
 
 === 2.8 / 2012-10-17
 
