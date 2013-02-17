@@ -1,5 +1,9 @@
 require 'net/http'
-require 'net/https'
+begin
+  require 'net/https'
+rescue LoadError
+  # net/https or openssl
+end if RUBY_VERSION < '1.9' # but only for 1.8
 require 'net/http/faster'
 require 'uri'
 require 'cgi' # for escaping
@@ -8,6 +12,8 @@ begin
   require 'net/http/pipeline'
 rescue LoadError
 end
+
+autoload :OpenSSL, 'openssl'
 
 ##
 # Persistent connections for Net::HTTP
@@ -183,9 +189,14 @@ class Net::HTTP::Persistent
   EPOCH = Time.at 0 # :nodoc:
 
   ##
+  # Is OpenSSL available?  This test works with autoload
+
+  HAVE_OPENSSL = defined? OpenSSL::SSL # :nodoc:
+
+  ##
   # The version of Net::HTTP::Persistent you are using
 
-  VERSION = '2.8.1'
+  VERSION = '2.9'
 
   ##
   # Exceptions rescued for automatic retry on ruby 2.0.0.  This overlaps with
@@ -198,7 +209,7 @@ class Net::HTTP::Persistent
     Errno::ECONNRESET,
     Errno::ECONNABORTED,
     Errno::EPIPE,
-    OpenSSL::SSL::SSLError,
+    (OpenSSL::SSL::SSLError if HAVE_OPENSSL),
     Timeout::Error,
   ].compact
 
@@ -482,12 +493,16 @@ class Net::HTTP::Persistent
     @private_key        = nil
     @ssl_version        = nil
     @verify_callback    = nil
-    @verify_mode        = OpenSSL::SSL::VERIFY_PEER
+    @verify_mode        = nil
     @cert_store         = nil
 
     @generation         = 0 # incremented when proxy URI changes
     @ssl_generation     = 0 # incremented when SSL session variables change
-    @reuse_ssl_sessions = OpenSSL::SSL.const_defined? :Session
+
+    if HAVE_OPENSSL then
+      @verify_mode        = OpenSSL::SSL::VERIFY_PEER
+      @reuse_ssl_sessions = OpenSSL::SSL.const_defined? :Session
+    end
 
     @retry_change_requests = false
 
@@ -563,6 +578,9 @@ class Net::HTTP::Persistent
     use_ssl = uri.scheme.downcase == 'https'
 
     if use_ssl then
+      raise Net::HTTP::Persistent::Error, 'OpenSSL is not available' unless
+        HAVE_OPENSSL
+
       ssl_generation = @ssl_generation
 
       ssl_cleanup ssl_generation

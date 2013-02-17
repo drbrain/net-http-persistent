@@ -1,8 +1,9 @@
 require 'rubygems'
 require 'minitest/autorun'
 require 'net/http/persistent'
-require 'openssl'
 require 'stringio'
+
+HAVE_OPENSSL = defined?(OpenSSL::SSL)
 
 module Net::HTTP::Persistent::TestConnect
   def self.included mod
@@ -179,6 +180,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     assert_empty @http.no_proxy
 
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     ssl_session_exists = OpenSSL::SSL.const_defined? :Session
 
     assert_equal ssl_session_exists, @http.reuse_ssl_sessions
@@ -190,6 +193,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_initialize_no_ssl_session
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     skip "OpenSSL::SSL::Session does not exist on #{RUBY_PLATFORM}" unless
       OpenSSL::SSL.const_defined? :Session
 
@@ -401,6 +406,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_connection_for_finished_ssl
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     uri = URI.parse 'https://example.com/path'
     c = @http.connection_for uri
 
@@ -561,6 +568,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_connection_for_ssl
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     uri = URI.parse 'https://example.com/path'
     c = @http.connection_for uri
 
@@ -569,6 +578,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_connection_for_ssl_cached
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     @uri = URI.parse 'https://example.com/path'
 
     cached = ssl_connection 0
@@ -579,6 +590,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_connection_for_ssl_cached_reconnect
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     @uri = URI.parse 'https://example.com/path'
 
     cached = ssl_connection
@@ -591,6 +604,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_connection_for_ssl_case
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     uri = URI.parse 'HTTPS://example.com/path'
     c = @http.connection_for uri
 
@@ -1201,6 +1216,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_request_ssl_error
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     uri = URI.parse 'https://example.com/path'
     c = @http.connection_for uri
     def c.request(*)
@@ -1410,6 +1427,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_shutdown_ssl
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     @uri = URI 'https://example'
 
     @http.connection_for @uri
@@ -1449,6 +1468,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_ssl
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     @http.verify_callback = :callback
     c = Net::HTTP.new 'localhost', 80
 
@@ -1461,6 +1482,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_ssl_ca_file
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     @http.ca_file = 'ca_file'
     @http.verify_callback = :callback
     c = Net::HTTP.new 'localhost', 80
@@ -1473,6 +1496,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_ssl_cert_store
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     store = OpenSSL::X509::Store.new
     @http.cert_store = store
 
@@ -1485,6 +1510,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_ssl_cert_store_default
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     @http.verify_mode = OpenSSL::SSL::VERIFY_PEER
 
     c = Net::HTTP.new 'localhost', 80
@@ -1496,6 +1523,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_ssl_certificate
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     @http.certificate = :cert
     @http.private_key = :key
     c = Net::HTTP.new 'localhost', 80
@@ -1508,6 +1537,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_ssl_verify_mode
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     @http.verify_mode = OpenSSL::SSL::VERIFY_NONE
     c = Net::HTTP.new 'localhost', 80
 
@@ -1518,35 +1549,41 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_ssl_warning
-    orig_verify_peer = OpenSSL::SSL::VERIFY_PEER
-    OpenSSL::SSL.send :remove_const, :VERIFY_PEER
-    OpenSSL::SSL.send :const_set, :VERIFY_PEER, OpenSSL::SSL::VERIFY_NONE
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
 
-    c = Net::HTTP.new 'localhost', 80
+    begin
+      orig_verify_peer = OpenSSL::SSL::VERIFY_PEER
+      OpenSSL::SSL.send :remove_const, :VERIFY_PEER
+      OpenSSL::SSL.send :const_set, :VERIFY_PEER, OpenSSL::SSL::VERIFY_NONE
 
-    out, err = capture_io do
-      @http.ssl c
-    end
+      c = Net::HTTP.new 'localhost', 80
 
-    assert_empty out
+      out, err = capture_io do
+        @http.ssl c
+      end
 
-    assert_match %r%localhost:80%, err
-    assert_match %r%I_KNOW_THAT_OPENSSL%, err
+      assert_empty out
 
-    Object.send :const_set, :I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG, nil
+      assert_match %r%localhost:80%, err
+      assert_match %r%I_KNOW_THAT_OPENSSL%, err
 
-    assert_silent do
-      @http.ssl c
-    end
-  ensure
-    OpenSSL::SSL.send :remove_const, :VERIFY_PEER
-    OpenSSL::SSL.send :const_set, :VERIFY_PEER, orig_verify_peer
-    if Object.const_defined?(:I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG) then
-      Object.send :remove_const, :I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG
+      Object.send :const_set, :I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG, nil
+
+      assert_silent do
+        @http.ssl c
+      end
+    ensure
+      OpenSSL::SSL.send :remove_const, :VERIFY_PEER
+      OpenSSL::SSL.send :const_set, :VERIFY_PEER, orig_verify_peer
+      if Object.const_defined?(:I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG) then
+        Object.send :remove_const, :I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG
+      end
     end
   end
 
   def test_ssl_cleanup
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
     uri1 = URI.parse 'https://one.example'
 
     c1 = @http.connection_for uri1

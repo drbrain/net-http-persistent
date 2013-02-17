@@ -1,9 +1,15 @@
 require 'rubygems'
 require 'minitest/autorun'
 require 'net/http/persistent'
-require 'openssl'
-require 'webrick'
-require 'webrick/ssl'
+have_ssl =
+  begin
+    require 'openssl'
+    require 'webrick'
+    require 'webrick/ssl'
+    true
+  rescue LoadError
+    false
+  end
 
 ##
 # This test is based on (and contains verbatim code from) the Net::HTTP tests
@@ -102,5 +108,5 @@ class TestNetHttpPersistentSSLReuse < MiniTest::Unit::TestCase
     assert ssl_socket.session_reused?
   end
 
-end
+end if have_ssl
 

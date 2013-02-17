@@ -1,4 +1,9 @@
-=== 2.8.1
+=== 2.9
+
+* Minor enhancement
+  * OpenSSL is no longer required.  If OpenSSL is not available an exception
+    will be raised when attempting to access HTTPS resources.  Feature request
+    by André Arko
 
 * Bug fixes
   * Explain the proper way of sending parameters depending upon the request
