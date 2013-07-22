@@ -1100,6 +1100,18 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
     assert c.finished?
   end
 
+  def test_request_exception
+    c = basic_connection
+    def c.request(*a) raise Exception, "very bad things happened" end
+
+    assert_raises Exception do
+      @http.request @uri
+    end
+
+    assert_equal 0, reqs[c.object_id]
+    assert c.finished?
+  end
+
   def test_request_invalid
     c = basic_connection
     def c.request(*a) raise Errno::EINVAL, "write" end

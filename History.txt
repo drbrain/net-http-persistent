@@ -10,6 +10,8 @@
     method.  Issue #35 by André Arko.
   * Handle Errno::ETIMEDOUT by retrying the request.  Issue #36 by André Arko.
   * Requests retried by ruby 2.x are no longer retried by net-http-persistent.
+  * Finish the connection if an otherwise unhandled exception happens during a
+    request.  Bug #46 by Mark Oude Veldhuis.
 
 === 2.8 / 2012-10-17
 

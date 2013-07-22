@@ -998,6 +998,10 @@ class Net::HTTP::Persistent
 
       retried = true
       retry
+    rescue Exception => e
+      finish connection
+
+      raise
     ensure
       Thread.current[@timeout_key][connection_id] = Time.now
     end
