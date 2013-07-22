@@ -758,7 +758,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_proxy_equals_env
-    ENV['HTTP_PROXY'] = 'proxy.example'
+    ENV['http_proxy'] = 'proxy.example'
 
     @http.proxy = :ENV
 
@@ -777,9 +777,9 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_proxy_from_env
-    ENV['HTTP_PROXY']      = 'proxy.example'
-    ENV['HTTP_PROXY_USER'] = 'johndoe'
-    ENV['HTTP_PROXY_PASS'] = 'muffins'
+    ENV['http_proxy']      = 'proxy.example'
+    ENV['http_proxy_user'] = 'johndoe'
+    ENV['http_proxy_pass'] = 'muffins'
     ENV['NO_PROXY']        = 'localhost,example.com'
 
     uri = @http.proxy_from_env
@@ -813,7 +813,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     assert_nil uri
 
-    ENV['HTTP_PROXY'] = ''
+    ENV['http_proxy'] = ''
 
     uri = @http.proxy_from_env
 
@@ -825,8 +825,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     assert_nil uri
 
-    ENV['HTTP_PROXY'] = 'proxy.example'
-    ENV['NO_PROXY'] = '*'
+    ENV['http_proxy'] = 'proxy.example'
+    ENV['no_proxy'] = '*'
 
     uri = @http.proxy_from_env
 
@@ -834,8 +834,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_proxy_bypass
-    ENV['HTTP_PROXY'] = 'proxy.example'
-    ENV['NO_PROXY'] = 'localhost,example.com:80'
+    ENV['http_proxy'] = 'proxy.example'
+    ENV['no_proxy'] = 'localhost,example.com:80'
 
     @http.proxy = :ENV
 
@@ -851,8 +851,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_proxy_bypass_space
-    ENV['HTTP_PROXY'] = 'proxy.example'
-    ENV['NO_PROXY'] = 'localhost, example.com'
+    ENV['http_proxy'] = 'proxy.example'
+    ENV['no_proxy'] = 'localhost, example.com'
 
     @http.proxy = :ENV
 
@@ -861,8 +861,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_proxy_bypass_trailing
-    ENV['HTTP_PROXY'] = 'proxy.example'
-    ENV['NO_PROXY'] = 'localhost,example.com,'
+    ENV['http_proxy'] = 'proxy.example'
+    ENV['no_proxy'] = 'localhost,example.com,'
 
     @http.proxy = :ENV
 
@@ -871,8 +871,8 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
   end
 
   def test_proxy_bypass_double_comma
-    ENV['HTTP_PROXY'] = 'proxy.example'
-    ENV['NO_PROXY'] = 'localhost,,example.com'
+    ENV['http_proxy'] = 'proxy.example'
+    ENV['no_proxy'] = 'localhost,,example.com'
 
     @http.proxy = :ENV
 
