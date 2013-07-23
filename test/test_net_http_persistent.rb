@@ -646,6 +646,7 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
   def test_expired_eh
     c = basic_connection
+    reqs[c.object_id] = 0
     touts[c.object_id] = Time.now - 11
 
     @http.idle_timeout = 0
@@ -662,6 +663,20 @@ class TestNetHttpPersistent < MiniTest::Unit::TestCase
 
     @http.idle_timeout = nil
     refute @http.expired? c
+  end
+
+  def test_expired_due_to_max_requests
+    c = basic_connection
+    reqs[c.object_id] = 0
+    touts[c.object_id] = Time.now
+
+    refute @http.expired? c
+
+    reqs[c.object_id] = 10
+    refute @http.expired? c
+
+    @http.max_requests = 10
+    assert @http.expired? c
   end
 
   def test_finish

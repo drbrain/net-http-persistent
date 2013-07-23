@@ -120,6 +120,13 @@ autoload :OpenSSL, 'openssl'
 # The amount of time allowed between reading two chunks from the socket.  Set
 # through #read_timeout
 #
+# === Max Requests
+#
+# The number of requests that should be made before opening a new connection.
+# Typically many keep-alive capable servers tune this to 100 or less, so the
+# 101st request will fail with ECONNRESET. If unset (default), this value has no
+# effect, if set, connections will be reset on the request after max_requests.
+#
 # === Open Timeout
 #
 # The amount of time to wait for a connection to be opened.  Set through
@@ -323,6 +330,12 @@ class Net::HTTP::Persistent
   attr_accessor :idle_timeout
 
   ##
+  # Maximum number of requests on a connection before it is considered expired
+  # and automatically closed.
+
+  attr_accessor :max_requests
+
+  ##
   # The value sent in the Keep-Alive header.  Defaults to 30.  Not needed for
   # HTTP/1.1 servers.
   #
@@ -477,6 +490,7 @@ class Net::HTTP::Persistent
     @open_timeout     = nil
     @read_timeout     = nil
     @idle_timeout     = 5
+    @max_requests     = nil
     @socket_options   = []
 
     @socket_options << [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1] if
@@ -651,10 +665,12 @@ class Net::HTTP::Persistent
   end
 
   ##
-  # Returns true if the connection should be reset due to an idle timeout,
-  # false otherwise.
+  # Returns true if the connection should be reset due to an idle timeout, or
+  # maximum request count, false otherwise.
 
   def expired? connection
+    requests = Thread.current[@request_key][connection.object_id]
+    return true  if     @max_requests && @max_requests >= requests
     return false unless @idle_timeout
     return true  if     @idle_timeout.zero?
 
