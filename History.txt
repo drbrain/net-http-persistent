@@ -3,6 +3,9 @@
 * Minor enhancement
   * Added max_requests to avoid ECONNRESET for a server that allows a limited
     number of requests on a connection.  Pull request #42 by James Tucker.
+  * Request failures are now raised with the backtrace of the original
+    exception.  This gives better insight into the reason for the failure.
+    See #41 by Andrew Cholakian.
   * OpenSSL is no longer required.  If OpenSSL is not available an exception
     will be raised when attempting to access HTTPS resources.  Feature request
     by André Arko
