@@ -1,6 +1,8 @@
 === 2.9
 
 * Minor enhancement
+  * Added max_requests to avoid ECONNRESET for a server that allows a limited
+    number of requests on a connection.  Pull request #42 by James Tucker.
   * OpenSSL is no longer required.  If OpenSSL is not available an exception
     will be raised when attempting to access HTTPS resources.  Feature request
     by André Arko
