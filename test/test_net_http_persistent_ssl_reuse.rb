@@ -15,7 +15,7 @@ have_ssl =
 # This test is based on (and contains verbatim code from) the Net::HTTP tests
 # in ruby
 
-class TestNetHttpPersistentSSLReuse < MiniTest::Unit::TestCase
+class TestNetHttpPersistentSSLReuse < Minitest::Test
 
   class NullWriter
     def <<(s) end

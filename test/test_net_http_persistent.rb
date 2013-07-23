@@ -55,7 +55,7 @@ class Net::HTTP::Persistent::SSLReuse
   include Net::HTTP::Persistent::TestConnect
 end
 
-class TestNetHttpPersistent < MiniTest::Unit::TestCase
+class TestNetHttpPersistent < Minitest::Test
 
   RUBY_1 = RUBY_VERSION < '2'
 
