@@ -677,6 +677,9 @@ class TestNetHttpPersistent < Minitest::Test
 
     @http.max_requests = 10
     assert @http.expired? c
+
+    reqs[c.object_id] = 9
+    refute @http.expired? c
   end
 
   def test_finish

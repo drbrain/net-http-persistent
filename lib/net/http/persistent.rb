@@ -670,7 +670,7 @@ class Net::HTTP::Persistent
 
   def expired? connection
     requests = Thread.current[@request_key][connection.object_id]
-    return true  if     @max_requests && @max_requests >= requests
+    return true  if     @max_requests && requests >= @max_requests
     return false unless @idle_timeout
     return true  if     @idle_timeout.zero?
 
