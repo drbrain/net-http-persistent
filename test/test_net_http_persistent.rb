@@ -60,7 +60,7 @@ class TestNetHttpPersistent < Minitest::Test
   RUBY_1 = RUBY_VERSION < '2'
 
   def setup
-    @http_class = if RUBY_1 then
+    @http_class = if RUBY_1 and HAVE_OPENSSL then
                     Net::HTTP::Persistent::SSLReuse
                   else
                     Net::HTTP
