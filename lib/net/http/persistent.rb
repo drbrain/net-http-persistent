@@ -268,6 +268,8 @@ class Net::HTTP::Persistent
       $stderr.puts "sleeping #{sleep_time}" if $DEBUG
       sleep sleep_time
     end
+  rescue
+    # ignore StandardErrors, we've probably found the idle timeout.
   ensure
     http.shutdown
 
