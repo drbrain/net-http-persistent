@@ -1287,6 +1287,30 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal '/path?a=b',  req.path
   end
 
+  def test_request_failed
+    c = basic_connection
+    reqs[c.object_id] = 1
+    touts[c.object_id] = Time.now
+
+    original = nil
+
+    begin
+      raise 'original'
+    rescue => original
+    end
+
+    req = Net::HTTP::Get.new '/'
+      
+    e = assert_raises Net::HTTP::Persistent::Error do
+      @http.request_failed original, req, c
+    end
+
+    assert_match "too many connection resets (due to original - RuntimeError)",
+                 e.message
+
+    assert_equal original.backtrace, e.backtrace
+  end
+
   def test_reset
     c = basic_connection
     c.start
