@@ -1,3 +1,8 @@
+=== 2.9.1
+
+* Bug fixes
+  * Added license to gemspec.  Issue #47 by Benjamin Fleischer
+
 === 2.9 / 2013-07-24
 
 * Minor enhancement

@@ -13,6 +13,8 @@ Hoe.spec 'net-http-persistent' do |p|
   self.readme_file      = 'README.rdoc'
   self.extra_rdoc_files += Dir['*.rdoc']
 
+  license 'MIT'
+
   rdoc_locations <<
     'docs.seattlerb.org:/data/www/docs.seattlerb.org/net-http-persistent/'
 end
