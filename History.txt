@@ -1,4 +1,4 @@
-=== 2.9
+=== 2.9 / 2013-07-24
 
 * Minor enhancement
   * Added max_requests to avoid ECONNRESET for a server that allows a limited
