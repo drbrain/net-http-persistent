@@ -13,6 +13,8 @@ begin
 rescue LoadError
 end
 
+require 'net/http/persistent/pool'
+
 autoload :OpenSSL, 'openssl'
 
 ##
@@ -816,6 +818,8 @@ class Net::HTTP::Persistent
     connection = connection_for uri
 
     connection.pipeline requests, &block
+  ensure
+    release
   end
 
   ##
@@ -1022,6 +1026,7 @@ class Net::HTTP::Persistent
       raise
     ensure
       current_thread[@timeout_key][connection_id] = Time.now
+      release
     end
 
     @http_versions["#{uri.host}:#{uri.port}"] ||= response.http_version
@@ -1096,6 +1101,7 @@ class Net::HTTP::Persistent
 
     thread[@request_key] = nil
     thread[@timeout_key] = nil
+    release thread
   end
 
   ##
@@ -1215,11 +1221,15 @@ application:
   private
 
   def all_threads
-    Thread.list
+    Pool.list
   end
 
   def current_thread
-    Thread.current
+    Pool.current
+  end
+
+  def release thread = Thread.current
+    Pool.release thread
   end
 
 end
