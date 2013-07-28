@@ -42,9 +42,9 @@ class Pool
     @pool.clear
     @queue.clear
 
-    return unless size
+    return unless @size
 
-    @size = size.times do
+    @size.times do
       @queue << {}
     end
   end
