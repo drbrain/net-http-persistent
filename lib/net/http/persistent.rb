@@ -13,8 +13,6 @@ begin
 rescue LoadError
 end
 
-require 'net/http/persistent/pool'
-
 autoload :OpenSSL, 'openssl'
 
 ##
@@ -1235,4 +1233,4 @@ application:
 end
 
 require 'net/http/persistent/ssl_reuse'
-
+require 'net/http/persistent/pool'

@@ -1,6 +1,6 @@
 require 'thread'
 
-class Pool
+class Net::HTTP::Persistent::Pool
 
   ##
   # Create a new connection pool of size +size+. If +size+ is nil, this will
