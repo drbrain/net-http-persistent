@@ -15,7 +15,7 @@ class Pool
   ##
   # Get the current hash from the pool. Blocks if none are available.
 
-  def current
+  def checkout
     thread = Thread.current
 
     return thread unless @size
