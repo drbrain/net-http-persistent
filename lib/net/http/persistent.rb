@@ -500,10 +500,10 @@ class Net::HTTP::Persistent
     @socket_options << [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1] if
       Socket.const_defined? :TCP_NODELAY
 
-    @generation_key     = :generations
-    @ssl_generation_key = :ssl_generations
-    @request_key        = :requests
-    @timeout_key        = :timeouts
+    @generation_key     = :net_http_persistent_generations
+    @ssl_generation_key = :net_http_persistent_ssl_generations
+    @request_key        = :net_http_persistent_requests
+    @timeout_key        = :net_http_persistent_timeouts
 
     @certificate        = nil
     @ca_file            = nil
