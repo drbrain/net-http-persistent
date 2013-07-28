@@ -481,8 +481,8 @@ class Net::HTTP::Persistent
   #   proxy.user     = 'AzureDiamond'
   #   proxy.password = 'hunter2'
 
-  def initialize name = nil, proxy = nil
-    @name = name
+  def initialize size = nil, proxy = nil
+    @pool = Pool.new size
 
     @debug_output     = nil
     @proxy_uri        = nil
@@ -500,11 +500,10 @@ class Net::HTTP::Persistent
     @socket_options << [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1] if
       Socket.const_defined? :TCP_NODELAY
 
-    key = ['net_http_persistent', name].compact
-    @generation_key     = [key, 'generations'    ].join('_').intern
-    @ssl_generation_key = [key, 'ssl_generations'].join('_').intern
-    @request_key        = [key, 'requests'       ].join('_').intern
-    @timeout_key        = [key, 'timeouts'       ].join('_').intern
+    @generation_key     = :generations
+    @ssl_generation_key = :ssl_generations
+    @request_key        = :requests
+    @timeout_key        = :timeouts
 
     @certificate        = nil
     @ca_file            = nil
@@ -1221,15 +1220,15 @@ application:
   private
 
   def all_threads
-    Pool.list
+    @pool.list
   end
 
   def current_thread
-    Pool.current
+    @pool.current
   end
 
   def release thread = Thread.current
-    Pool.release thread
+    @pool.release thread
   end
 
 end
