@@ -1223,6 +1223,7 @@ application:
     @pool.list
   end
 
+  # TODO rename.
   def current_thread
     @pool.checkout
   end
