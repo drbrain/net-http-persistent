@@ -29,12 +29,11 @@ class Net::HTTP::Persistent::Pool
     @pool.values
   end
 
-  def release thread = Thread.current
+  def release worker = nil
     return unless @size
 
-    key = @pool.key thread
-    current = @pool.delete key if key
-    @queue.push current        if current
+    key = @pool.key worker
+    @queue.push @pool.delete key if key
   end
 
   def set_size size

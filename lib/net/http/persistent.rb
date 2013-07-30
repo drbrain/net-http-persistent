@@ -1226,8 +1226,8 @@ application:
     @pool.checkout
   end
 
-  def release thread = Thread.current
-    @pool.release thread
+  def release worker = current_thread
+    @pool.release worker
   end
 
 end
