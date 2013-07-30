@@ -20,6 +20,8 @@ class Net::HTTP::Persistent::Pool
 
     return thread unless @size
 
+    cleanup
+
     @pool[thread] ||= @queue.pop
   end
 
@@ -45,6 +47,14 @@ class Net::HTTP::Persistent::Pool
 
     @size.times do
       @queue << {}
+    end
+  end
+
+  private
+
+  def cleanup
+    @pool.each do |thr, worker|
+      release worker unless thr.alive?
     end
   end
 
