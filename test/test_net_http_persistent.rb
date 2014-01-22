@@ -274,6 +274,7 @@ class TestNetHttpPersistent < Minitest::Test
   def test_connection_for
     @http.open_timeout = 123
     @http.read_timeout = 321
+    @http.idle_timeout = 42
     c = @http.connection_for @uri
 
     assert_kind_of @http_class, c
@@ -283,6 +284,7 @@ class TestNetHttpPersistent < Minitest::Test
 
     assert_equal 123, c.open_timeout
     assert_equal 321, c.read_timeout
+    assert_equal 42, c.keep_alive_timeout unless RUBY_1
 
     assert_includes conns[0].keys, 'example.com:80'
     assert_same c, conns[0]['example.com:80']

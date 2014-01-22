@@ -631,6 +631,7 @@ class Net::HTTP::Persistent
     start connection unless connection.started?
 
     connection.read_timeout = @read_timeout if @read_timeout
+    connection.keep_alive_timeout = @idle_timeout if @idle_timeout && connection.respond_to?(:keep_alive_timeout=)
 
     connection
   rescue Errno::ECONNREFUSED
