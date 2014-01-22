@@ -956,9 +956,13 @@ class Net::HTTP::Persistent
 
     start connection
   rescue Errno::ECONNREFUSED
-    raise Error, "connection refused: #{connection.address}:#{connection.port}"
+    e = Error.new "connection refused: #{connection.address}:#{connection.port}"
+    e.set_backtrace $@
+    raise e
   rescue Errno::EHOSTDOWN
-    raise Error, "host down: #{connection.address}:#{connection.port}"
+    e = Error.new "host down: #{connection.address}:#{connection.port}"
+    e.set_backtrace $@
+    raise e
   end
 
   ##

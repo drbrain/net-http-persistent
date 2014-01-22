@@ -1339,6 +1339,7 @@ class TestNetHttpPersistent < Minitest::Test
     end
 
     assert_match %r%host down%, e.message
+    assert_match __FILE__, e.backtrace.first
   end
 
   def test_reset_io_error
@@ -1363,6 +1364,7 @@ class TestNetHttpPersistent < Minitest::Test
     end
 
     assert_match %r%connection refused%, e.message
+    assert_match __FILE__, e.backtrace.first
   end
 
   def test_retry_change_requests_equals

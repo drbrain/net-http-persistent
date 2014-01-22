@@ -4,6 +4,8 @@
   * Added license to gemspec.  Issue #47 by Benjamin Fleischer
   * Set Net::HTTP#keep_alive_timeout when supported by ruby.  Pull request #53
     by Dylan Thacker-Smith.
+  * The backtrace is preserved for errors in #reset to help with debugging.
+    Issue #41 by Andrew Cholakian.
 
 === 2.9 / 2013-07-24
 
