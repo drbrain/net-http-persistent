@@ -7,7 +7,7 @@ Hoe.plugin :git
 Hoe.plugin :minitest
 Hoe.plugin :travis
 
-Hoe.spec 'net-http-persistent' do |p|
+Hoe.spec 'net-http-persistent' do
   developer 'Eric Hodel', 'drbrain@segment7.net'
 
   self.readme_file      = 'README.rdoc'
