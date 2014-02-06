@@ -1,3 +1,9 @@
+=== 2.9.2 / 2014-02-05
+
+* Bug fixes
+  * Special characters in proxy passwords are now handled correctly.  Issue
+    #48 by Mislav Marohnić.  Pull request #54 by Juha Kajava
+
 === 2.9.1 / 2014-01-22
 
 * Bug fixes
