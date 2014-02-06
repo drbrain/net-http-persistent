@@ -668,6 +668,14 @@ class Net::HTTP::Persistent
   end
 
   ##
+  # URI::unescape wrapper
+
+  def unescape str
+    CGI.unescape str if str
+  end
+
+
+  ##
   # Returns true if the connection should be reset due to an idle timeout, or
   # maximum request count, false otherwise.
 
@@ -854,6 +862,9 @@ class Net::HTTP::Persistent
                  end
 
     @no_proxy.clear
+
+    @proxy_uri.user = unescape @proxy_uri.user
+    @proxy_uri.password = unescape @proxy_uri.password
 
     if @proxy_uri then
       @proxy_args = [

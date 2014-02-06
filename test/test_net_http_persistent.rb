@@ -505,6 +505,17 @@ class TestNetHttpPersistent < Minitest::Test
     assert_same c, conns[1]['example.com:80:proxy.example:80:johndoe:muffins']
   end
 
+  def test_connection_for_proxy_unescaped
+    uri = URI.parse 'http://proxy.example'
+    uri.user     = 'john%24doe'
+    uri.password = 'muf%24fins'
+
+    http = Net::HTTP::Persistent.new nil, uri
+
+    assert_equal 'john$doe', http.proxy_uri.user
+    assert_equal 'muf$fins', http.proxy_uri.password
+  end
+
   def test_connection_for_proxy_host_down
     Net::HTTP.use_connect :host_down_connect
     Net::HTTP::Persistent::SSLReuse.use_connect :host_down_connect
@@ -644,6 +655,12 @@ class TestNetHttpPersistent < Minitest::Test
     assert_nil @http.escape nil
 
     assert_equal '+%3F', @http.escape(' ?')
+  end
+
+  def test_unescape
+    assert_nil @http.unescape nil
+
+    assert_equal ' ?', @http.unescape('+%3F')
   end
 
   def test_expired_eh
