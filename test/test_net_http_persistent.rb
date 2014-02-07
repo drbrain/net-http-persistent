@@ -805,6 +805,15 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal 1, @http.ssl_generation, 'ssl_generation'
   end
 
+  def test_proxy_equals_nil
+    @http.proxy = nil
+
+    assert_equal nil, @http.proxy_uri
+
+    assert_equal 1, @http.generation, 'generation'
+    assert_equal 1, @http.ssl_generation, 'ssl_generation'
+  end
+
   def test_proxy_equals_uri
     proxy_uri = URI.parse 'http://proxy.example'
 
