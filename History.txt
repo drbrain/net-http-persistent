@@ -1,3 +1,9 @@
+=== 2.9.3 / 2014-02-06
+
+* Bug fixes
+  * Fix breakage in 2.9.2 for users without proxies.  Pull request #56 by
+    Yoshihiro TAKAHARA (merged), #57 by ChuckLin, #58 by Kenny Meyer.
+
 === 2.9.2 / 2014-02-05
 
 * Bug fixes
