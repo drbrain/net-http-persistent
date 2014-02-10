@@ -507,13 +507,15 @@ class TestNetHttpPersistent < Minitest::Test
 
   def test_connection_for_proxy_unescaped
     uri = URI.parse 'http://proxy.example'
-    uri.user     = 'john%24doe'
-    uri.password = 'muf%24fins'
+    uri.user = 'john%40doe'
+    uri.password = 'muf%3Afins'
+    uri.freeze
 
     http = Net::HTTP::Persistent.new nil, uri
+    c = http.connection_for @uri
 
-    assert_equal 'john$doe', http.proxy_uri.user
-    assert_equal 'muf$fins', http.proxy_uri.password
+    assert_includes conns[1].keys,
+                    'example.com:80:proxy.example:80:john@doe:muf:fins'
   end
 
   def test_connection_for_proxy_host_down
