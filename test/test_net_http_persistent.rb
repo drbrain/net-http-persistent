@@ -940,7 +940,7 @@ class TestNetHttpPersistent < Minitest::Test
 
     assert c.started?
     refute c.proxy?
-    refute c.proxy_from_env?
+    refute c.proxy_from_env? unless RUBY_1
   end
 
   def test_reconnect
