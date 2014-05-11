@@ -928,6 +928,21 @@ class TestNetHttpPersistent < Minitest::Test
     refute @http.proxy_bypass? 'example.org', 80
   end
 
+  def test_connection_for_no_proxy_from_env
+    ENV['http_proxy'] = 'proxy.example'
+    ENV['no_proxy'] = 'localhost, example.com,'
+    ENV['proxy_user'] = 'johndoe'
+    ENV['proxy_password'] = 'muffins'
+
+    http = Net::HTTP::Persistent.new nil, :ENV
+
+    c = http.connection_for @uri
+
+    assert c.started?
+    refute c.proxy?
+    refute c.proxy_from_env?
+  end
+
   def test_reconnect
     result = @http.reconnect
 
