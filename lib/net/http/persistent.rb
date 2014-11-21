@@ -291,6 +291,12 @@ class Net::HTTP::Persistent
   attr_reader :ca_file
 
   ##
+  # A directory of SSL certificates to be used as certificate authorities.
+  # Setting this will set verify_mode to VERIFY_PEER.
+
+  attr_reader :ca_path
+
+  ##
   # An SSL certificate store.  Setting this will override the default
   # certificate store.  See verify_mode for more information.
 
@@ -446,7 +452,7 @@ class Net::HTTP::Persistent
   attr_reader :timeout_key # :nodoc:
 
   ##
-  # SSL verification callback.  Used when ca_file is set.
+  # SSL verification callback.  Used when ca_file or ca_path is set.
 
   attr_reader :verify_callback
 
@@ -459,8 +465,8 @@ class Net::HTTP::Persistent
   # HTTPS verify mode.  Defaults to OpenSSL::SSL::VERIFY_PEER which verifies
   # the server certificate.
   #
-  # If no ca_file or cert_store is set the default system certificate store is
-  # used.
+  # If no ca_file, ca_path or cert_store is set the default system certificate
+  # store is used.
   #
   # You can use +verify_mode+ to override any default values.
 
@@ -521,6 +527,7 @@ class Net::HTTP::Persistent
 
     @certificate        = nil
     @ca_file            = nil
+    @ca_path            = nil
     @ciphers            = nil
     @private_key        = nil
     @ssl_timeout        = nil
@@ -563,6 +570,15 @@ class Net::HTTP::Persistent
 
   def ca_file= file
     @ca_file = file
+
+    reconnect_ssl
+  end
+
+  ##
+  # Sets the SSL certificate authority path.
+
+  def ca_path= path
+    @ca_path = path
 
     reconnect_ssl
   end
@@ -1196,8 +1212,10 @@ application:
       WARNING
     end
 
-    if @ca_file then
-      connection.ca_file = @ca_file
+    connection.ca_file = @ca_file if @ca_file
+    connection.ca_path = @ca_path if @ca_path
+
+    if @ca_file or @ca_path then
       connection.verify_mode = OpenSSL::SSL::VERIFY_PEER
       connection.verify_callback = @verify_callback if @verify_callback
     end

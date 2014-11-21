@@ -224,6 +224,13 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal 1, @http.ssl_generation
   end
 
+  def test_ca_path_equals
+    @http.ca_path = :ca_path
+
+    assert_equal :ca_path, @http.ca_path
+    assert_equal 1, @http.ssl_generation
+  end
+
   def test_can_retry_eh_change_requests
     post = Net::HTTP::Post.new '/'
 
@@ -1578,6 +1585,20 @@ class TestNetHttpPersistent < Minitest::Test
     skip 'OpenSSL is missing' unless HAVE_OPENSSL
 
     @http.ca_file = 'ca_file'
+    @http.verify_callback = :callback
+    c = Net::HTTP.new 'localhost', 80
+
+    @http.ssl c
+
+    assert c.use_ssl?
+    assert_equal OpenSSL::SSL::VERIFY_PEER, c.verify_mode
+    assert_equal :callback, c.verify_callback
+  end
+
+  def test_ssl_ca_path
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
+    @http.ca_path = 'ca_path'
     @http.verify_callback = :callback
     c = Net::HTTP.new 'localhost', 80
 
