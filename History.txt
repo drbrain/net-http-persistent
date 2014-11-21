@@ -1,3 +1,9 @@
+=== 2.9.5 / 2014-11-20
+
+* Bug fixes
+  * Add missing SSL options ca_path, ciphers, ssl_timeout, verify_depth.
+    Issue #63 by Johnneylee Jack Rollins.
+
 === 2.9.4 / 2014-02-10
 
 * Bug fixes
