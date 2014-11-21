@@ -1736,6 +1736,13 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal 1, @http.ssl_generation
   end
 
+  def test_verify_depth_equals
+    @http.verify_depth = :verify_depth
+
+    assert_equal :verify_depth, @http.verify_depth
+    assert_equal 1, @http.ssl_generation
+  end
+
   def test_verify_mode_equals
     @http.verify_mode = :verify_mode
 

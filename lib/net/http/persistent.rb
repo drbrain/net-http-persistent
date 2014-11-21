@@ -451,6 +451,11 @@ class Net::HTTP::Persistent
   attr_reader :verify_callback
 
   ##
+  # Sets the depth of SSL certificate verification
+
+  attr_reader :verify_depth
+
+  ##
   # HTTPS verify mode.  Defaults to OpenSSL::SSL::VERIFY_PEER which verifies
   # the server certificate.
   #
@@ -521,6 +526,7 @@ class Net::HTTP::Persistent
     @ssl_timeout        = nil
     @ssl_version        = nil
     @verify_callback    = nil
+    @verify_depth       = nil
     @verify_mode        = nil
     @cert_store         = nil
 
@@ -1160,7 +1166,8 @@ class Net::HTTP::Persistent
     connection.ssl_timeout = @ssl_timeout if @ssl_timeout
     connection.ssl_version = @ssl_version if @ssl_version
 
-    connection.verify_mode = @verify_mode
+    connection.verify_depth = @verify_depth
+    connection.verify_mode  = @verify_mode
 
     if OpenSSL::SSL::VERIFY_PEER == OpenSSL::SSL::VERIFY_NONE and
        not Object.const_defined?(:I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG) then
@@ -1234,6 +1241,15 @@ application:
 
     reconnect_ssl
   end if RUBY_VERSION > '1.9'
+
+  ##
+  # Sets the depth of SSL certificate verification
+
+  def verify_depth= verify_depth
+    @verify_depth = verify_depth
+
+    reconnect_ssl
+  end
 
   ##
   # Sets the HTTPS verify mode.  Defaults to OpenSSL::SSL::VERIFY_PEER.
