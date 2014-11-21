@@ -70,13 +70,17 @@ autoload :OpenSSL, 'openssl'
 # Here are the SSL settings, see the individual methods for documentation:
 #
 # #certificate        :: This client's certificate
-# #ca_file            :: The certificate-authority
+# #ca_file            :: The certificate-authorities
+# #ca_path            :: Directory with certificate-authorities
 # #cert_store         :: An SSL certificate store
+# #ciphers            :: List of SSl ciphers allowed
 # #private_key        :: The client's SSL private key
 # #reuse_ssl_sessions :: Reuse a previously opened SSL session for a new
 #                        connection
+# #ssl_timeout        :: SSL session lifetime
 # #ssl_version        :: Which specific SSL version to use
 # #verify_callback    :: For server certificate verification
+# #verify_depth       :: Depth of certificate verification
 # #verify_mode        :: How connections should be verified
 #
 # == Proxies
