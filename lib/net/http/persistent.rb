@@ -297,6 +297,11 @@ class Net::HTTP::Persistent
   attr_reader :cert_store
 
   ##
+  # The ciphers allowed for SSL connections
+
+  attr_reader :ciphers
+
+  ##
   # Sends debug_output to this IO via Net::HTTP#set_debug_output.
   #
   # Never use this method in production code, it causes a serious security
@@ -511,6 +516,7 @@ class Net::HTTP::Persistent
 
     @certificate        = nil
     @ca_file            = nil
+    @ciphers            = nil
     @private_key        = nil
     @ssl_timeout        = nil
     @ssl_version        = nil
@@ -561,6 +567,15 @@ class Net::HTTP::Persistent
 
   def cert_store= store
     @cert_store = store
+
+    reconnect_ssl
+  end
+
+  ##
+  # The ciphers allowed for SSL connections
+
+  def ciphers= ciphers
+    @ciphers = ciphers
 
     reconnect_ssl
   end
@@ -1141,6 +1156,7 @@ class Net::HTTP::Persistent
   def ssl connection
     connection.use_ssl = true
 
+    connection.ciphers     = @ciphers     if @ciphers
     connection.ssl_timeout = @ssl_timeout if @ssl_timeout
     connection.ssl_version = @ssl_version if @ssl_version
 

@@ -271,6 +271,13 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal 1, @http.ssl_generation
   end
 
+  def test_ciphers_equals
+    @http.ciphers = :ciphers
+
+    assert_equal :ciphers, @http.ciphers
+    assert_equal 1, @http.ssl_generation
+  end
+
   def test_connection_for
     @http.open_timeout = 123
     @http.read_timeout = 321
