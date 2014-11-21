@@ -423,6 +423,11 @@ class Net::HTTP::Persistent
   attr_reader :ssl_generation_key # :nodoc:
 
   ##
+  # SSL session lifetime
+
+  attr_reader :ssl_timeout
+
+  ##
   # SSL version to use.
   #
   # By default, the version will be negotiated automatically between client
@@ -507,6 +512,7 @@ class Net::HTTP::Persistent
     @certificate        = nil
     @ca_file            = nil
     @private_key        = nil
+    @ssl_timeout        = nil
     @ssl_version        = nil
     @verify_callback    = nil
     @verify_mode        = nil
@@ -1135,6 +1141,7 @@ class Net::HTTP::Persistent
   def ssl connection
     connection.use_ssl = true
 
+    connection.ssl_timeout = @ssl_timeout if @ssl_timeout
     connection.ssl_version = @ssl_version if @ssl_version
 
     connection.verify_mode = @verify_mode
@@ -1192,6 +1199,15 @@ application:
 
   def ssl_cleanup generation # :nodoc:
     cleanup generation, Thread.current, @ssl_generation_key
+  end
+
+  ##
+  # SSL session lifetime
+
+  def ssl_timeout= ssl_timeout
+    @ssl_timeout = ssl_timeout
+
+    reconnect_ssl
   end
 
   ##

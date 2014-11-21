@@ -1686,6 +1686,13 @@ class TestNetHttpPersistent < Minitest::Test
     assert_empty reqs # sanity check, performed by #finish
   end
 
+  def test_ssl_timeout_equals
+    @http.ssl_timeout = :ssl_timeout
+
+    assert_equal :ssl_timeout, @http.ssl_timeout
+    assert_equal 1, @http.ssl_generation
+  end
+
   def test_ssl_version_equals
     @http.ssl_version = :ssl_version
 
