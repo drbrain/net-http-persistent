@@ -515,7 +515,7 @@ class TestNetHttpPersistent < Minitest::Test
     uri.freeze
 
     http = Net::HTTP::Persistent.new nil, uri
-    c = http.connection_for @uri
+    http.connection_for @uri
 
     assert_includes conns[1].keys,
                     'example.com:80:proxy.example:80:john@doe:muf:fins'
