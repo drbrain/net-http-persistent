@@ -410,17 +410,6 @@ class TestNetHttpPersistent < Minitest::Test
                  'connection not reset due to timeout'
   end
 
-  def test_connection_for_refused
-    Net::HTTP.use_connect :refused_connect
-    Net::HTTP::Persistent::SSLReuse.use_connect :refused_connect
-
-    e = assert_raises Net::HTTP::Persistent::Error do
-      @http.connection_for @uri
-    end
-
-    assert_equal 'connection refused: example.com:80', e.message
-  end
-
   def test_connection_for_finished_ssl
     skip 'OpenSSL is missing' unless HAVE_OPENSSL
 
@@ -584,16 +573,14 @@ class TestNetHttpPersistent < Minitest::Test
   end
 
   def test_connection_for_refused
-    cached = basic_connection
-    def cached.start; raise Errno::ECONNREFUSED end
-    def cached.started?; false end
-    conns[0]['example.com:80'] = cached
+    Net::HTTP.use_connect :refused_connect
+    Net::HTTP::Persistent::SSLReuse.use_connect :refused_connect
 
     e = assert_raises Net::HTTP::Persistent::Error do
       @http.connection_for @uri
     end
 
-    assert_match %r%connection refused%, e.message
+    assert_equal 'connection refused: example.com:80', e.message
   end
 
   def test_connection_for_ssl
