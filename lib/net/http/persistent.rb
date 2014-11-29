@@ -504,8 +504,8 @@ class Net::HTTP::Persistent
   #   proxy.user     = 'AzureDiamond'
   #   proxy.password = 'hunter2'
 
-  def initialize name = nil, proxy = nil
-    @name = name
+  def initialize size = nil, proxy = nil
+    @pool = Pool.new size
 
     @debug_output     = nil
     @proxy_uri        = nil
@@ -523,11 +523,10 @@ class Net::HTTP::Persistent
     @socket_options << [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1] if
       Socket.const_defined? :TCP_NODELAY
 
-    key = ['net_http_persistent', name].compact
-    @generation_key     = [key, 'generations'    ].join('_').intern
-    @ssl_generation_key = [key, 'ssl_generations'].join('_').intern
-    @request_key        = [key, 'requests'       ].join('_').intern
-    @timeout_key        = [key, 'timeouts'       ].join('_').intern
+    @generation_key     = :net_http_persistent_generations
+    @ssl_generation_key = :net_http_persistent_ssl_generations
+    @request_key        = :net_http_persistent_requests
+    @timeout_key        = :net_http_persistent_timeouts
 
     @certificate        = nil
     @ca_file            = nil
@@ -612,7 +611,7 @@ class Net::HTTP::Persistent
   #
   # See #shutdown for a bunch of scary warning about misusing this method.
 
-  def cleanup(generation, thread = Thread.current,
+  def cleanup(generation, thread = current_thread,
               generation_key = @generation_key) # :nodoc:
     timeouts = thread[@timeout_key]
 
@@ -633,10 +632,10 @@ class Net::HTTP::Persistent
   # Creates a new connection for +uri+
 
   def connection_for uri
-    Thread.current[@generation_key]     ||= Hash.new { |h,k| h[k] = {} }
-    Thread.current[@ssl_generation_key] ||= Hash.new { |h,k| h[k] = {} }
-    Thread.current[@request_key]        ||= Hash.new 0
-    Thread.current[@timeout_key]        ||= Hash.new EPOCH
+    current_thread[@generation_key]     ||= Hash.new { |h,k| h[k] = {} }
+    current_thread[@ssl_generation_key] ||= Hash.new { |h,k| h[k] = {} }
+    current_thread[@request_key]        ||= Hash.new 0
+    current_thread[@timeout_key]        ||= Hash.new EPOCH
 
     use_ssl = uri.scheme.downcase == 'https'
 
@@ -648,13 +647,13 @@ class Net::HTTP::Persistent
 
       ssl_cleanup ssl_generation
 
-      connections = Thread.current[@ssl_generation_key][ssl_generation]
+      connections = current_thread[@ssl_generation_key][ssl_generation]
     else
       generation = @generation
 
       cleanup generation
 
-      connections = Thread.current[@generation_key][generation]
+      connections = current_thread[@generation_key][generation]
     end
 
     net_http_args = [uri.host, uri.port]
@@ -698,8 +697,8 @@ class Net::HTTP::Persistent
   # this connection
 
   def error_message connection
-    requests = Thread.current[@request_key][connection.object_id] - 1 # fixup
-    last_use = Thread.current[@timeout_key][connection.object_id]
+    requests = current_thread[@request_key][connection.object_id] - 1 # fixup
+    last_use = current_thread[@timeout_key][connection.object_id]
 
     age = Time.now - last_use
 
@@ -727,12 +726,12 @@ class Net::HTTP::Persistent
   # maximum request count, false otherwise.
 
   def expired? connection
-    requests = Thread.current[@request_key][connection.object_id]
+    requests = current_thread[@request_key][connection.object_id]
     return true  if     @max_requests && requests >= @max_requests
     return false unless @idle_timeout
     return true  if     @idle_timeout.zero?
 
-    last_used = Thread.current[@timeout_key][connection.object_id]
+    last_used = current_thread[@timeout_key][connection.object_id]
 
     Time.now - last_used > @idle_timeout
   end
@@ -758,7 +757,7 @@ class Net::HTTP::Persistent
   ##
   # Finishes the Net::HTTP +connection+
 
-  def finish connection, thread = Thread.current
+  def finish connection, thread = current_thread
     if requests = thread[@request_key] then
       requests.delete connection.object_id
     end
@@ -872,6 +871,8 @@ class Net::HTTP::Persistent
     connection = connection_for uri
 
     connection.pipeline requests, &block
+  ensure
+    release
   end
 
   ##
@@ -1004,8 +1005,8 @@ class Net::HTTP::Persistent
   # Finishes then restarts the Net::HTTP +connection+
 
   def reset connection
-    Thread.current[@request_key].delete connection.object_id
-    Thread.current[@timeout_key].delete connection.object_id
+    current_thread[@request_key].delete connection.object_id
+    current_thread[@timeout_key].delete connection.object_id
 
     finish connection
 
@@ -1042,7 +1043,7 @@ class Net::HTTP::Persistent
     connection_id = connection.object_id
 
     begin
-      Thread.current[@request_key][connection_id] += 1
+      current_thread[@request_key][connection_id] += 1
       response = connection.request req, &block
 
       if connection_close?(req) or
@@ -1081,7 +1082,8 @@ class Net::HTTP::Persistent
 
       raise
     ensure
-      Thread.current[@timeout_key][connection_id] = Time.now
+      current_thread[@timeout_key][connection_id] = Time.now
+      release
     end
 
     @http_versions["#{uri.host}:#{uri.port}"] ||= response.http_version
@@ -1147,7 +1149,7 @@ class Net::HTTP::Persistent
   # If the thread is still using the connection it may cause an error!  It is
   # best to call #shutdown in the thread at the appropriate time instead!
 
-  def shutdown thread = Thread.current
+  def shutdown thread = current_thread
     generation = reconnect
     cleanup generation, thread, @generation_key
 
@@ -1156,6 +1158,7 @@ class Net::HTTP::Persistent
 
     thread[@request_key] = nil
     thread[@timeout_key] = nil
+    release thread
   end
 
   ##
@@ -1169,7 +1172,7 @@ class Net::HTTP::Persistent
   # Use this method only as a last resort!
 
   def shutdown_in_all_threads
-    Thread.list.each do |thread|
+    all_threads.each do |thread|
       shutdown thread
     end
 
@@ -1243,7 +1246,7 @@ application:
   # +generation+.
 
   def ssl_cleanup generation # :nodoc:
-    cleanup generation, Thread.current, @ssl_generation_key
+    cleanup generation, current_thread, @ssl_generation_key
   end
 
   ##
@@ -1295,7 +1298,22 @@ application:
     reconnect_ssl
   end
 
+  private
+
+  def all_threads
+    @pool.list
+  end
+
+  # TODO rename.
+  def current_thread
+    @pool.checkout
+  end
+
+  def release worker = current_thread
+    @pool.release worker
+  end
+
 end
 
 require 'net/http/persistent/ssl_reuse'
-
+require 'net/http/persistent/pool'
