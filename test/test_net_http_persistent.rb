@@ -96,7 +96,8 @@ class TestNetHttpPersistent < Minitest::Test
     attr_accessor :started, :finished, :address, :port,
                   :read_timeout, :open_timeout
     attr_reader :req, :debug_output
-    def initialize
+    def initialize(*args) # swallowing args so that it can be used
+                          # as Net::HTTP::Persistent's http_class
       @started, @finished = 0, 0
       @address, @port = 'example.com', 80
     end
@@ -1422,6 +1423,41 @@ class TestNetHttpPersistent < Minitest::Test
 
     assert @http.can_retry?(post)
   end
+
+  def test_cleanup
+    http = Net::HTTP::Persistent.new 'name'
+    def http.http_class; BasicConnection end
+    uri = URI.parse 'http://example/'
+
+    # lets make sure that the thread's local storage will get
+    # initialized by 'connection_for'
+    Thread.current[http.generation_key] = nil
+    Thread.current[http.ssl_generation_key] = nil
+
+    c1_object_id = http.connection_for(uri).object_id
+
+    # Reconnect
+    http.reconnect
+    http.connection_for uri
+
+    # Cleanup
+    http.cleanup(http.generation)
+
+    # Verify that the old connection object is not lingering around
+    ObjectSpace.garbage_collect
+
+    c1_cleaned_up = true
+    ObjectSpace.each_object do |o|
+      if c1_object_id == o.object_id
+        c1_cleaned_up = false
+      end
+    end
+
+    assert c1_cleaned_up, "connection not cleaned up"
+    assert_empty conns
+    assert_empty ssl_conns
+  end
+
 
   def test_shutdown
     ssl_conns
