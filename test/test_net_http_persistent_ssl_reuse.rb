@@ -87,7 +87,7 @@ class TestNetHttpPersistentSSLReuse < Minitest::Test
 
     @http = Net::HTTP::Persistent::SSLReuse.new @host, @port
     @http.cert_store = store
-    @http.ssl_version = :SSLv3 if @http.respond_to? :ssl_version=
+    @http.ssl_version = :SSLv23 if @http.respond_to? :ssl_version=
     @http.use_ssl = true
     @http.verify_mode = OpenSSL::SSL::VERIFY_PEER
 
