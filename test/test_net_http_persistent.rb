@@ -84,21 +84,21 @@ class TestNetHttpPersistent < Minitest::Test
   end
 
   def teardown
-    Thread.current.keys.each do |key|
-      Thread.current[key] = nil
-    end
-
     Net::HTTP.use_connect :orig_connect
     Net::HTTP::Persistent::SSLReuse.use_connect :orig_connect
   end
 
   class BasicConnection
-    attr_accessor :started, :finished, :address, :port,
+    attr_accessor :started, :finished, :address, :port, :use_ssl,
                   :read_timeout, :open_timeout
+    attr_accessor :ciphers, :ssl_timeout, :ssl_version,
+                  :verify_depth, :verify_mode, :cert_store,
+                  :ca_file, :ca_path, :cert, :key
     attr_reader :req, :debug_output
     def initialize
       @started, @finished = 0, 0
       @address, @port = 'example.com', 80
+      @use_ssl = false
     end
     def finish
       @finished += 1
@@ -125,21 +125,32 @@ class TestNetHttpPersistent < Minitest::Test
     def started?
       @started >= 1
     end
+    def proxy_address
+    end
+    def proxy_port
+    end
   end
 
   def basic_connection
     raise "#{@uri} is not HTTP" unless @uri.scheme.downcase == 'http'
 
-    c = BasicConnection.new
-    conns[0]["#{@uri.host}:#{@uri.port}"] = c
-    c
+    net_http_args = [@uri.host, @uri.port]
+
+    connection = Net::HTTP::Persistent::Connection.allocate
+    connection.ssl_generation = @http.ssl_generation
+    connection.http = BasicConnection.new
+    connection.reset
+
+    @http.pool.available.push connection, connection_args: net_http_args
+
+    connection
   end
 
   def connection
-    c = basic_connection
-    touts[c.object_id] = Time.now
+    connection = basic_connection
+    connection.last_use = Time.now
 
-    def c.request(req)
+    def (connection.http).request(req)
       @req = req
       r = Net::HTTPResponse.allocate
       r.instance_variable_set :@header, {}
@@ -149,30 +160,22 @@ class TestNetHttpPersistent < Minitest::Test
       r
     end
 
-    c
+    connection
   end
 
-  def conns
-    Thread.current[@http.generation_key] ||= Hash.new { |h,k| h[k] = {} }
-  end
-
-  def reqs
-    Thread.current[@http.request_key] ||= Hash.new 0
-  end
-
-  def ssl_conns
-    Thread.current[@http.ssl_generation_key] ||= Hash.new { |h,k| h[k] = {} }
-  end
-
-  def ssl_connection generation = 0
+  def ssl_connection
     raise "#{@uri} is not HTTPS" unless @uri.scheme.downcase == 'https'
-    c = BasicConnection.new
-    ssl_conns[generation]["#{@uri.host}:#{@uri.port}"] = c
-    c
-  end
 
-  def touts
-    Thread.current[@http.timeout_key] ||= Hash.new Net::HTTP::Persistent::EPOCH
+    net_http_args = [@uri.host, @uri.port]
+
+    connection = Net::HTTP::Persistent::Connection.allocate
+    connection.ssl_generation = @http.ssl_generation
+    connection.http = BasicConnection.new
+    connection.reset
+
+    @http.pool.available.push connection, connection_args: net_http_args
+
+    connection
   end
 
   def test_initialize
@@ -289,153 +292,143 @@ class TestNetHttpPersistent < Minitest::Test
     @http.open_timeout = 123
     @http.read_timeout = 321
     @http.idle_timeout = 42
-    c = @http.connection_for @uri
 
-    assert_kind_of @http_class, c
+    used = @http.connection_for @uri do |c|
+      assert_kind_of @http_class, c.http
 
-    assert c.started?
-    refute c.proxy?
+      assert c.http.started?
+      refute c.http.proxy?
 
-    assert_equal 123, c.open_timeout
-    assert_equal 321, c.read_timeout
-    assert_equal 42, c.keep_alive_timeout unless RUBY_1
+      assert_equal 123, c.http.open_timeout
+      assert_equal 321, c.http.read_timeout
+      assert_equal 42, c.http.keep_alive_timeout unless RUBY_1
 
-    assert_includes conns[0].keys, 'example.com:80'
-    assert_same c, conns[0]['example.com:80']
+      c
+    end
+
+    stored = @http.pool.checkout ['example.com', 80]
+
+    assert_same used, stored
   end
 
   def test_connection_for_cached
     cached = basic_connection
-    cached.start
-    conns[0]['example.com:80'] = cached
+    cached.http.start
 
     @http.read_timeout = 5
 
-    c = @http.connection_for @uri
+    @http.connection_for @uri do |c|
+      assert c.http.started?
 
-    assert c.started?
+      assert_equal 5, c.http.read_timeout
 
-    assert_equal 5,       c.read_timeout
-
-    assert_same cached, c
+      assert_same cached, c
+    end
   end
 
   def test_connection_for_closed
     cached = basic_connection
-    cached.start
+    cached.http.start
     if Socket.const_defined? :TCP_NODELAY then
       io = Object.new
       def io.setsockopt(*a) raise IOError, 'closed stream' end
       cached.instance_variable_set :@socket, Net::BufferedIO.new(io)
     end
-    conns['example.com:80'] = cached
 
-    c = @http.connection_for @uri
+    @http.connection_for @uri do |c|
+      assert c.http.started?
 
-    assert c.started?
+      socket = c.http.instance_variable_get :@socket
 
-    assert_includes conns.keys, 'example.com:80'
-    assert_same c, conns[0]['example.com:80']
-
-    socket = c.instance_variable_get :@socket
-
-    refute_includes socket.io.instance_variables, :@setsockopt
-    refute_includes socket.io.instance_variables, '@setsockopt'
+      refute_includes socket.io.instance_variables, :@setsockopt
+      refute_includes socket.io.instance_variables, '@setsockopt'
+    end
   end
 
   def test_connection_for_debug_output
     io = StringIO.new
     @http.debug_output = io
 
-    c = @http.connection_for @uri
-
-    assert c.started?
-    assert_equal io, c.instance_variable_get(:@debug_output)
-
-    assert_includes conns[0].keys, 'example.com:80'
-    assert_same c, conns[0]['example.com:80']
+    @http.connection_for @uri do |c|
+      assert c.http.started?
+      assert_equal io, c.http.instance_variable_get(:@debug_output)
+    end
   end
 
   def test_connection_for_cached_expire_always
     cached = basic_connection
-    cached.start
-    conns[0]['example.com:80'] = cached
-    reqs[cached.object_id] = 10
-    touts[cached.object_id] = Time.now # last used right now
+    cached.http.start
+    cached.requests = 10
+    cached.last_use = Time.now # last used right now
 
     @http.idle_timeout = 0
 
-    c = @http.connection_for @uri
+    @http.connection_for @uri do |c|
+      assert c.http.started?
 
-    assert c.started?
+      assert_same cached, c
 
-    assert_same cached, c
-
-    assert_equal 0, reqs[cached.object_id],
-                 'connection reset due to timeout'
+      assert_equal 0, c.requests, 'connection reset due to timeout'
+    end
   end
 
   def test_connection_for_cached_expire_never
     cached = basic_connection
-    cached.start
-    conns[0]['example.com:80'] = cached
-    reqs[cached.object_id] = 10
-    touts[cached.object_id] = Time.now # last used right now
+    cached.http.start
+    cached.requests = 10
+    cached.last_use = Time.now # last used right now
 
     @http.idle_timeout = nil
 
-    c = @http.connection_for @uri
+    @http.connection_for @uri do |c|
+      assert c.http.started?
 
-    assert c.started?
+      assert_same cached, c
 
-    assert_same cached, c
-
-    assert_equal 10, reqs[cached.object_id],
-                 'connection reset despite no timeout'
+      assert_equal 10, c.requests, 'connection reset despite no timeout'
+    end
   end
 
   def test_connection_for_cached_expired
     cached = basic_connection
-    cached.start
-    conns[0]['example.com:80'] = cached
-    reqs[cached.object_id] = 10
-    touts[cached.object_id] = Time.now - 3600
+    cached.http.start
+    cached.requests = 10
+    cached.last_use = Time.now - 3600
 
-    c = @http.connection_for @uri
+    @http.connection_for @uri do |c|
+      assert c.http.started?
 
-    assert c.started?
-
-    assert_same cached, c
-    assert_equal 0, reqs[cached.object_id],
-                 'connection not reset due to timeout'
+      assert_same cached, c
+      assert_equal 0, cached.requests, 'connection not reset due to timeout'
+    end
   end
 
   def test_connection_for_finished_ssl
     skip 'OpenSSL is missing' unless HAVE_OPENSSL
 
     uri = URI.parse 'https://example.com/path'
-    c = @http.connection_for uri
 
-    assert c.started?
-    assert c.use_ssl?
+    @http.connection_for uri do |c|
+      assert c.http.started?
+      assert c.http.use_ssl?
 
-    @http.finish c
+      @http.finish c
 
-    refute c.started?
+      refute c.http.started?
+    end
 
-    c2 = @http.connection_for uri
-
-    assert c2.started?
+    @http.connection_for uri do |c2|
+      assert c2.http.started?
+    end
   end
 
   def test_connection_for_host_down
-    cached = basic_connection
-    def cached.start; raise Errno::EHOSTDOWN end
-    def cached.started?; false end
-    conns[0]['example.com:80'] = cached
+    c = basic_connection
+    def (c.http).start; raise Errno::EHOSTDOWN end
+    def (c.http).started?; false end
 
     e = assert_raises Net::HTTP::Persistent::Error do
-      @http.connection_for @uri
+      @http.connection_for @uri do end
     end
 
     assert_equal 'host down: example.com:80', e.message
@@ -443,8 +436,10 @@ class TestNetHttpPersistent < Minitest::Test
 
   def test_connection_for_http_class_with_fakeweb
     Object.send :const_set, :FakeWeb, nil
-    c = @http.connection_for @uri
-    assert_instance_of Net::HTTP, c
+
+    @http.connection_for @uri do |c|
+      assert_instance_of Net::HTTP, c.http
+    end
   ensure
     if Object.const_defined?(:FakeWeb) then
       Object.send :remove_const, :FakeWeb
@@ -453,8 +448,9 @@ class TestNetHttpPersistent < Minitest::Test
 
   def test_connection_for_http_class_with_webmock
     Object.send :const_set, :WebMock, nil
-    c = @http.connection_for @uri
-    assert_instance_of Net::HTTP, c
+    @http.connection_for @uri do |c|
+      assert_instance_of Net::HTTP, c.http
+    end
   ensure
     if Object.const_defined?(:WebMock) then
       Object.send :remove_const, :WebMock
@@ -463,8 +459,9 @@ class TestNetHttpPersistent < Minitest::Test
 
   def test_connection_for_http_class_with_artifice
     Object.send :const_set, :Artifice, nil
-    c = @http.connection_for @uri
-    assert_instance_of Net::HTTP, c
+    @http.connection_for @uri do |c|
+      assert_instance_of Net::HTTP, c.http
+    end
   ensure
     if Object.const_defined?(:Artifice) then
       Object.send :remove_const, :Artifice
@@ -475,20 +472,19 @@ class TestNetHttpPersistent < Minitest::Test
     http = Net::HTTP::Persistent.new 'name'
     uri = URI.parse 'http://example/'
 
-    c = http.connection_for uri
-
-    assert c.started?
-
-    refute_includes conns.keys, 'example:80'
+    http.connection_for uri do |c|
+      assert c.http.started?
+    end
   end
 
   def test_connection_for_no_ssl_reuse
     @http.reuse_ssl_sessions = false
     @http.open_timeout = 123
     @http.read_timeout = 321
-    c = @http.connection_for @uri
 
-    assert_instance_of Net::HTTP, c
+    @http.connection_for @uri do |c|
+      assert_instance_of Net::HTTP, c.http
+    end
   end
 
   def test_connection_for_proxy
@@ -498,14 +494,18 @@ class TestNetHttpPersistent < Minitest::Test
 
     http = Net::HTTP::Persistent.new nil, uri
 
-    c = http.connection_for @uri
+    used = http.connection_for @uri do |c|
+      assert c.http.started?
+      assert c.http.proxy?
 
-    assert c.started?
-    assert c.proxy?
+      c
+    end
 
-    assert_includes conns[1].keys,
-                    'example.com:80:proxy.example:80:johndoe:muffins'
-    assert_same c, conns[1]['example.com:80:proxy.example:80:johndoe:muffins']
+    stored = http.pool.checkout ['example.com', 80,
+                                 'proxy.example', 80,
+                                 'johndoe', 'muffins']
+
+    assert_same used, stored
   end
 
   def test_connection_for_proxy_unescaped
@@ -515,10 +515,14 @@ class TestNetHttpPersistent < Minitest::Test
     uri.freeze
 
     http = Net::HTTP::Persistent.new nil, uri
-    http.connection_for @uri
 
-    assert_includes conns[1].keys,
-                    'example.com:80:proxy.example:80:john@doe:muf:fins'
+    http.connection_for @uri do end
+
+    stored = http.pool.checkout ['example.com', 80,
+                                 'proxy.example', 80,
+                                 'john@doe', 'muf:fins']
+
+    assert stored
   end
 
   def test_connection_for_proxy_host_down
@@ -532,7 +536,7 @@ class TestNetHttpPersistent < Minitest::Test
     http = Net::HTTP::Persistent.new nil, uri
 
     e = assert_raises Net::HTTP::Persistent::Error do
-      http.connection_for @uri
+      http.connection_for @uri do end
     end
 
     assert_equal 'host down: proxy.example:80', e.message
@@ -549,7 +553,7 @@ class TestNetHttpPersistent < Minitest::Test
     http = Net::HTTP::Persistent.new nil, uri
 
     e = assert_raises Net::HTTP::Persistent::Error do
-      http.connection_for @uri
+      http.connection_for @uri do end
     end
 
     assert_equal 'connection refused: proxy.example:80', e.message
@@ -563,13 +567,14 @@ class TestNetHttpPersistent < Minitest::Test
 
     http = Net::HTTP::Persistent.new nil, uri
 
-    c = http.connection_for @uri
+    http.connection_for @uri do |c|
+      assert c.http.started?
+      refute c.http.proxy?
+    end
 
-    assert c.started?
-    refute c.proxy?
+    stored = http.pool.checkout ['example.com', 80]
 
-    assert_includes conns[1].keys, 'example.com:80'
-    assert_same c, conns[1]['example.com:80']
+    assert stored
   end
 
   def test_connection_for_refused
@@ -577,7 +582,7 @@ class TestNetHttpPersistent < Minitest::Test
     Net::HTTP::Persistent::SSLReuse.use_connect :refused_connect
 
     e = assert_raises Net::HTTP::Persistent::Error do
-      @http.connection_for @uri
+      @http.connection_for @uri do end
     end
 
     assert_equal 'connection refused: example.com:80', e.message
@@ -587,10 +592,11 @@ class TestNetHttpPersistent < Minitest::Test
     skip 'OpenSSL is missing' unless HAVE_OPENSSL
 
     uri = URI.parse 'https://example.com/path'
-    c = @http.connection_for uri
 
-    assert c.started?
-    assert c.use_ssl?
+    @http.connection_for uri do |c|
+      assert c.http.started?
+      assert c.http.use_ssl?
+    end
   end
 
   def test_connection_for_ssl_cached
@@ -598,11 +604,11 @@ class TestNetHttpPersistent < Minitest::Test
 
     @uri = URI.parse 'https://example.com/path'
 
-    cached = ssl_connection 0
+    cached = ssl_connection
 
-    c = @http.connection_for @uri
-
-    assert_same cached, c
+    @http.connection_for @uri do |c|
+      assert_same cached, c
+    end
   end
 
   def test_connection_for_ssl_cached_reconnect
@@ -612,45 +618,47 @@ class TestNetHttpPersistent < Minitest::Test
 
     cached = ssl_connection
 
+    ssl_generation = @http.ssl_generation
+
     @http.reconnect_ssl
 
-    c = @http.connection_for @uri
-
-    refute_same cached, c
+    @http.connection_for @uri do |c|
+      assert_same cached, c
+      refute_equal ssl_generation, c.ssl_generation
+    end
   end
 
   def test_connection_for_ssl_case
     skip 'OpenSSL is missing' unless HAVE_OPENSSL
 
     uri = URI.parse 'HTTPS://example.com/path'
-    c = @http.connection_for uri
-
-    assert c.started?
-    assert c.use_ssl?
+    @http.connection_for uri do |c|
+      assert c.http.started?
+      assert c.http.use_ssl?
+    end
   end
 
   def test_connection_for_timeout
     cached = basic_connection
-    cached.start
-    reqs[cached.object_id] = 10
-    touts[cached.object_id] = Time.now - 6
-    conns[0]['example.com:80'] = cached
+    cached.http.start
+    cached.requests = 10
+    cached.last_use = Time.now - 6
 
-    c = @http.connection_for @uri
+    @http.connection_for @uri do |c|
+      assert c.http.started?
+      assert_equal 0, c.requests
 
-    assert c.started?
-    assert_equal 0, reqs[c.object_id]
-
-    assert_same cached, c
+      assert_same cached, c
+    end
   end
 
   def test_error_message
     c = basic_connection
-    touts[c.object_id] = Time.now - 1
-    reqs[c.object_id] = 5
+    c.last_use = Time.now - 1
+    c.requests = 5
 
-    message = @http.error_message(c)
-    assert_match %r%after 4 requests on #{c.object_id}%, message
+    message = @http.error_message c
+    assert_match %r%after 4 requests on #{c.http.object_id}%, message
     assert_match %r%, last used [\d.]+ seconds ago%, message
   end
 
@@ -668,8 +676,8 @@ class TestNetHttpPersistent < Minitest::Test
 
   def test_expired_eh
     c = basic_connection
-    reqs[c.object_id] = 0
-    touts[c.object_id] = Time.now - 11
+    c.requests = 0
+    c.last_use = Time.now - 11
 
     @http.idle_timeout = 0
     assert @http.expired? c
@@ -689,41 +697,43 @@ class TestNetHttpPersistent < Minitest::Test
 
   def test_expired_due_to_max_requests
     c = basic_connection
-    reqs[c.object_id] = 0
-    touts[c.object_id] = Time.now
+    c.requests = 0
+    c.last_use = Time.now
 
     refute @http.expired? c
 
-    reqs[c.object_id] = 10
+    c.requests = 10
     refute @http.expired? c
 
     @http.max_requests = 10
     assert @http.expired? c
 
-    reqs[c.object_id] = 9
+    c.requests = 9
     refute @http.expired? c
   end
 
   def test_finish
     c = basic_connection
-    reqs[c.object_id] = 5
+    c.requests = 5
 
     @http.finish c
 
-    refute c.started?
-    assert c.finished?
-    assert_equal 0, reqs[c.object_id]
+    refute c.http.started?
+    assert c.http.finished?
+
+    assert_equal 0, c.requests
+    assert_equal Net::HTTP::Persistent::EPOCH, c.last_use
   end
 
   def test_finish_io_error
     c = basic_connection
-    def c.finish; @finished += 1; raise IOError end
-    reqs[c.object_id] = 5
+    def (c.http).finish; @finished += 1; raise IOError end
+    c.requests = 5
 
     @http.finish c
 
-    refute c.started?
-    assert c.finished?
+    refute c.http.started?
+    assert c.http.finished?
   end
 
   def test_http_version
@@ -776,7 +786,6 @@ class TestNetHttpPersistent < Minitest::Test
 
     cached = basic_connection
     cached.start
-    conns['example.com:80'] = cached
 
     requests = [
       Net::HTTP::Get.new((@uri + '1').request_uri),
@@ -936,9 +945,38 @@ class TestNetHttpPersistent < Minitest::Test
   end
 
   def test_reconnect_ssl
-    result = @http.reconnect_ssl
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
 
-    assert_equal 1, result
+    @uri = URI 'https://example.com'
+    now = Time.now
+
+    ssl_http = ssl_connection
+
+    def (ssl_http.http).finish
+      @started = 0
+    end
+
+    used1 = @http.connection_for @uri do |c|
+      c.requests = 1
+      c.last_use = now
+      c
+    end
+
+    assert_equal OpenSSL::SSL::VERIFY_PEER, used1.http.verify_mode
+
+    @http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    @http.reconnect_ssl
+
+    used2 = @http.connection_for @uri do |c|
+      c
+    end
+
+    assert_same used1, used2
+
+    assert_equal OpenSSL::SSL::VERIFY_NONE, used2.http.verify_mode,
+                 'verify mode must change'
+    assert_equal 0, used2.requests
+    assert_equal Net::HTTP::Persistent::EPOCH, used2.last_use
   end
 
   def test_request
@@ -947,7 +985,7 @@ class TestNetHttpPersistent < Minitest::Test
     c = connection
 
     res = @http.request @uri
-    req = c.req
+    req = c.http.req
 
     assert_kind_of Net::HTTPResponse, res
 
@@ -960,39 +998,39 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal 'keep-alive', req['connection']
     assert_equal '30',         req['keep-alive']
 
-    assert_in_delta Time.now, touts[c.object_id]
+    assert_in_delta Time.now, c.last_use
 
-    assert_equal 1, reqs[c.object_id]
+    assert_equal 1, c.requests
   end
 
   def test_request_ETIMEDOUT
     c = basic_connection
-    def c.request(*a) raise Errno::ETIMEDOUT, "timed out" end
+    def (c.http).request(*a) raise Errno::ETIMEDOUT, "timed out" end
 
     e = assert_raises Net::HTTP::Persistent::Error do
       @http.request @uri
     end
 
-    assert_equal 0, reqs[c.object_id]
+    assert_equal 0, c.requests
     assert_match %r%too many connection resets%, e.message
   end
 
   def test_request_bad_response
     c = basic_connection
-    def c.request(*a) raise Net::HTTPBadResponse end
+    def (c.http).request(*a) raise Net::HTTPBadResponse end
 
     e = assert_raises Net::HTTP::Persistent::Error do
       @http.request @uri
     end
 
-    assert_equal 0, reqs[c.object_id]
+    assert_equal 0, c.requests
     assert_match %r%too many bad responses%, e.message
   end
 
   if RUBY_1 then
     def test_request_bad_response_retry
       c = basic_connection
-      def c.request(*a)
+      def (c.http).request(*a)
         if defined? @called then
           r = Net::HTTPResponse.allocate
           r.instance_variable_set :@header, {}
@@ -1006,12 +1044,12 @@ class TestNetHttpPersistent < Minitest::Test
 
       @http.request @uri
 
-      assert c.finished?
+      assert c.http.finished?
     end
   else
     def test_request_bad_response_retry
       c = basic_connection
-      def c.request(*a)
+      def (c.http).request(*a)
         raise Net::HTTPBadResponse
       end
 
@@ -1019,13 +1057,13 @@ class TestNetHttpPersistent < Minitest::Test
         @http.request @uri
       end
 
-      assert c.finished?
+      assert c.http.finished?
     end
   end
 
   def test_request_bad_response_unsafe
     c = basic_connection
-    def c.request(*a)
+    def (c.http).request(*a)
       if instance_variable_defined? :@request then
         raise 'POST must not be retried'
       else
@@ -1038,7 +1076,7 @@ class TestNetHttpPersistent < Minitest::Test
       @http.request @uri, Net::HTTP::Post.new(@uri.path)
     end
 
-    assert_equal 0, reqs[c.object_id]
+    assert_equal 0, c.requests
     assert_match %r%too many bad responses%, e.message
   end
 
@@ -1051,7 +1089,7 @@ class TestNetHttpPersistent < Minitest::Test
       body = r.read_body
     end
 
-    req = c.req
+    req = c.http.req
 
     assert_kind_of Net::HTTPResponse, res
     refute_nil body
@@ -1062,17 +1100,17 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal '30',         req['keep-alive']
     assert_match %r%test ua%,  req['user-agent']
 
-    assert_equal 1, reqs[c.object_id]
+    assert_equal 1, c.requests
   end
 
   def test_request_close_1_0
     c = connection
 
-    class << c
+    class << c.http
       remove_method :request
     end
 
-    def c.request req
+    def (c.http).request req
       @req = req
       r = Net::HTTPResponse.allocate
       r.instance_variable_set :@header, {}
@@ -1085,7 +1123,7 @@ class TestNetHttpPersistent < Minitest::Test
     request = Net::HTTP::Get.new @uri.request_uri
 
     res = @http.request @uri, request
-    req = c.req
+    req = c.http.req
 
     assert_kind_of Net::HTTPResponse, res
 
@@ -1094,7 +1132,7 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal 'keep-alive', req['connection']
     assert_equal '30',         req['keep-alive']
 
-    assert c.finished?
+    assert c.http.finished?
   end
 
   def test_request_connection_close_request
@@ -1104,7 +1142,7 @@ class TestNetHttpPersistent < Minitest::Test
     request['connection'] = 'close'
 
     res = @http.request @uri, request
-    req = c.req
+    req = c.http.req
 
     assert_kind_of Net::HTTPResponse, res
 
@@ -1113,17 +1151,17 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal 'close',      req['connection']
     assert_equal nil,          req['keep-alive']
 
-    assert c.finished?
+    assert c.http.finished?
   end
 
   def test_request_connection_close_response
     c = connection
 
-    class << c
+    class << c.http
       remove_method :request
     end
 
-    def c.request req
+    def (c.http).request req
       @req = req
       r = Net::HTTPResponse.allocate
       r.instance_variable_set :@header, {}
@@ -1137,7 +1175,7 @@ class TestNetHttpPersistent < Minitest::Test
     request = Net::HTTP::Get.new @uri.request_uri
 
     res = @http.request @uri, request
-    req = c.req
+    req = c.http.req
 
     assert_kind_of Net::HTTPResponse, res
 
@@ -1146,38 +1184,40 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal 'keep-alive', req['connection']
     assert_equal '30',         req['keep-alive']
 
-    assert c.finished?
+    assert c.http.finished?
   end
 
   def test_request_exception
     c = basic_connection
-    def c.request(*a) raise Exception, "very bad things happened" end
+    def (c.http).request(*a)
+      raise Exception, "very bad things happened"
+    end
 
     assert_raises Exception do
       @http.request @uri
     end
 
-    assert_equal 0, reqs[c.object_id]
-    assert c.finished?
+    assert_equal 0, c.requests
+    assert c.http.finished?
   end
 
   def test_request_invalid
     c = basic_connection
-    def c.request(*a) raise Errno::EINVAL, "write" end
+    def (c.http).request(*a) raise Errno::EINVAL, "write" end
 
     e = assert_raises Net::HTTP::Persistent::Error do
       @http.request @uri
     end
 
-    assert_equal 0, reqs[c.object_id]
+    assert_equal 0, c.requests
     assert_match %r%too many connection resets%, e.message
   end
 
   def test_request_invalid_retry
     c = basic_connection
-    touts[c.object_id] = Time.now
+    c.last_use = Time.now
 
-    def c.request(*a)
+    def (c.http).request(*a)
       if defined? @called then
         r = Net::HTTPResponse.allocate
         r.instance_variable_set :@header, {}
@@ -1191,8 +1231,8 @@ class TestNetHttpPersistent < Minitest::Test
 
     @http.request @uri
 
-    assert c.reset?
-    assert c.finished?
+    assert c.http.reset?
+    assert c.http.finished?
   end
 
   def test_request_post
@@ -1201,28 +1241,28 @@ class TestNetHttpPersistent < Minitest::Test
     post = Net::HTTP::Post.new @uri.path
 
     @http.request @uri, post
-    req = c.req
+    req = c.http.req
 
     assert_same post, req
   end
 
   def test_request_reset
     c = basic_connection
-    def c.request(*a) raise Errno::ECONNRESET end
+    def (c.http).request(*a) raise Errno::ECONNRESET end
 
     e = assert_raises Net::HTTP::Persistent::Error do
       @http.request @uri
     end
 
-    assert_equal 0, reqs[c.object_id]
+    assert_equal 0, c.requests
     assert_match %r%too many connection resets%, e.message
   end
 
   if RUBY_1 then
     def test_request_reset_retry
       c = basic_connection
-      touts[c.object_id] = Time.now
-      def c.request(*a)
+      c.last_use = Time.now
+      def (c.http).request(*a)
         if defined? @called then
           r = Net::HTTPResponse.allocate
           r.instance_variable_set :@header, {}
@@ -1236,15 +1276,15 @@ class TestNetHttpPersistent < Minitest::Test
 
       @http.request @uri
 
-      assert c.reset?
-      assert c.finished?
+      assert c.http.reset?
+      assert c.http.finished?
     end
   else
     def test_request_reset_retry
       c = basic_connection
-      touts[c.object_id] = Time.now
+      c.last_use = Time.now
 
-      def c.request(*a)
+      def (c.http).request(*a)
         raise Errno::ECONNRESET
       end
 
@@ -1252,14 +1292,14 @@ class TestNetHttpPersistent < Minitest::Test
         @http.request @uri
       end
 
-      refute c.reset?
-      assert c.finished?
+      refute (c.http).reset?
+      assert (c.http).finished?
     end
   end
 
   def test_request_reset_unsafe
     c = basic_connection
-    def c.request(*a)
+    def (c.http).request(*a)
       if instance_variable_defined? :@request then
         raise 'POST must not be retried'
       else
@@ -1272,7 +1312,7 @@ class TestNetHttpPersistent < Minitest::Test
       @http.request @uri, Net::HTTP::Post.new(@uri.path)
     end
 
-    assert_equal 0, reqs[c.object_id]
+    assert_equal 0, c.requests
     assert_match %r%too many connection resets%, e.message
   end
 
@@ -1280,15 +1320,16 @@ class TestNetHttpPersistent < Minitest::Test
     skip 'OpenSSL is missing' unless HAVE_OPENSSL
 
     uri = URI.parse 'https://example.com/path'
-    c = @http.connection_for uri
-    def c.request(*)
-      raise OpenSSL::SSL::SSLError, "SSL3_WRITE_PENDING:bad write retry"
-    end
+    @http.connection_for uri do |c|
+      def (c.http).request(*)
+        raise OpenSSL::SSL::SSLError, "SSL3_WRITE_PENDING:bad write retry"
+      end
 
-    e = assert_raises Net::HTTP::Persistent::Error do
-      @http.request uri
+      e = assert_raises Net::HTTP::Persistent::Error do
+        @http.request uri
+      end
+      assert_match %r%bad write retry%, e.message
     end
-    assert_match %r%bad write retry%, e.message
   end
 
   def test_request_setup
@@ -1320,8 +1361,8 @@ class TestNetHttpPersistent < Minitest::Test
 
   def test_request_failed
     c = basic_connection
-    reqs[c.object_id] = 1
-    touts[c.object_id] = Time.now
+    c.requests = 1
+    c.last_use = Time.now
 
     original = nil
 
@@ -1331,7 +1372,7 @@ class TestNetHttpPersistent < Minitest::Test
     end
 
     req = Net::HTTP::Get.new '/'
-      
+
     e = assert_raises Net::HTTP::Persistent::Error do
       @http.request_failed original, req, c
     end
@@ -1344,24 +1385,24 @@ class TestNetHttpPersistent < Minitest::Test
 
   def test_reset
     c = basic_connection
-    c.start
-    touts[c.object_id] = Time.now
-    reqs[c.object_id]  = 5
+    c.http.start
+    c.last_use = Time.now
+    c.requests  = 5
 
     @http.reset c
 
-    assert c.started?
-    assert c.finished?
-    assert c.reset?
-    assert_equal 0, reqs[c.object_id]
-    assert_equal Net::HTTP::Persistent::EPOCH, touts[c.object_id]
+    assert c.http.started?
+    assert c.http.finished?
+    assert c.http.reset?
+    assert_equal 0, c.requests
+    assert_equal Net::HTTP::Persistent::EPOCH, c.last_use
   end
 
   def test_reset_host_down
     c = basic_connection
-    touts[c.object_id] = Time.now
-    def c.start; raise Errno::EHOSTDOWN end
-    reqs[c.object_id] = 5
+    c.last_use = Time.now
+    def (c.http).start; raise Errno::EHOSTDOWN end
+    c.requests = 5
 
     e = assert_raises Net::HTTP::Persistent::Error do
       @http.reset c
@@ -1373,20 +1414,20 @@ class TestNetHttpPersistent < Minitest::Test
 
   def test_reset_io_error
     c = basic_connection
-    touts[c.object_id] = Time.now
-    reqs[c.object_id] = 5
+    c.last_use = Time.now
+    c.requests = 5
 
     @http.reset c
 
-    assert c.started?
-    assert c.finished?
+    assert c.http.started?
+    assert c.http.finished?
   end
 
   def test_reset_refused
     c = basic_connection
-    touts[c.object_id] = Time.now
-    def c.start; raise Errno::ECONNREFUSED end
-    reqs[c.object_id] = 5
+    c.last_use = Time.now
+    def (c.http).start; raise Errno::ECONNREFUSED end
+    c.requests = 5
 
     e = assert_raises Net::HTTP::Persistent::Error do
       @http.reset c
@@ -1425,10 +1466,7 @@ class TestNetHttpPersistent < Minitest::Test
   end
 
   def test_shutdown
-    ssl_conns
     c = connection
-    rs = reqs
-    ts = touts
 
     orig = @http
     @http = Net::HTTP::Persistent.new 'name'
@@ -1438,120 +1476,8 @@ class TestNetHttpPersistent < Minitest::Test
 
     @http = orig
 
-    assert c.finished?, 'last-generation connection must be finished'
-    refute c2.finished?, 'present generation connection must not be finished'
-
-    refute_same rs, reqs
-    refute_same ts, touts
-
-    assert_empty conns
-    assert_empty ssl_conns
-
-    assert_empty reqs
-    assert_empty touts
-  end
-
-  def test_shutdown_in_all_threads
-    conns
-    ssl_conns
-
-    t = Thread.new do
-      c = connection
-      ssl_conns
-      conns
-      reqs
-
-      Thread.stop
-
-      c
-    end
-
-    Thread.pass until t.status == 'sleep'
-
-    c = connection
-
-    assert_nil @http.shutdown_in_all_threads
-
-    assert c.finished?, 'connection in same thread must be finished'
-
-    assert_empty Thread.current[@http.generation_key]
-
-    assert_nil Thread.current[@http.request_key]
-
-    t.run
-    assert t.value.finished?, 'connection in other thread must be finished'
-
-    assert_empty t[@http.generation_key]
-
-    assert_nil t[@http.request_key]
-  end
-
-  def test_shutdown_no_connections
-    @http.shutdown
-
-    assert_nil Thread.current[@http.generation_key]
-    assert_nil Thread.current[@http.ssl_generation_key]
-
-    assert_nil Thread.current[@http.request_key]
-    assert_nil Thread.current[@http.timeout_key]
-  end
-
-  def test_shutdown_not_started
-    ssl_conns
-
-    c = basic_connection
-    def c.finish() raise IOError end
-
-    conns[0]["#{@uri.host}:#{@uri.port}"] = c
-
-    @http.shutdown
-
-    assert_empty Thread.current[@http.generation_key]
-    assert_empty Thread.current[@http.ssl_generation_key]
-
-    assert_nil Thread.current[@http.request_key]
-    assert_nil Thread.current[@http.timeout_key]
-  end
-
-  def test_shutdown_ssl
-    skip 'OpenSSL is missing' unless HAVE_OPENSSL
-
-    @uri = URI 'https://example'
-
-    @http.connection_for @uri
-
-    @http.shutdown
-
-    assert_empty ssl_conns
-  end
-
-  def test_shutdown_thread
-    t = Thread.new do
-      c = connection
-      conns
-      ssl_conns
-
-      reqs
-
-      Thread.stop
-
-      c
-    end
-
-    Thread.pass until t.status == 'sleep'
-
-    c = connection
-
-    @http.shutdown t
-
-    refute c.finished?
-
-    t.run
-    assert t.value.finished?
-    assert_empty t[@http.generation_key]
-    assert_empty t[@http.ssl_generation_key]
-    assert_nil t[@http.request_key]
-    assert_nil t[@http.timeout_key]
+    assert c.http.finished?, 'last-generation connection must be finished'
+    refute c2.http.finished?, 'present generation connection must not be finished'
   end
 
   def test_ssl
@@ -1682,25 +1608,6 @@ class TestNetHttpPersistent < Minitest::Test
     end
   end
 
-  def test_ssl_cleanup
-    skip 'OpenSSL is missing' unless HAVE_OPENSSL
-
-    uri1 = URI.parse 'https://one.example'
-
-    c1 = @http.connection_for uri1
-
-    touts[c1.object_id] = Time.now
-    reqs[c1.object_id] = 5
-
-    @http.reconnect_ssl
-
-    @http.ssl_cleanup @http.ssl_generation
-
-    assert_empty ssl_conns
-    assert_empty touts
-    assert_empty reqs # sanity check, performed by #finish
-  end
-
   def test_ssl_timeout_equals
     @http.ssl_timeout = :ssl_timeout
 
@@ -1717,6 +1624,7 @@ class TestNetHttpPersistent < Minitest::Test
 
   def test_start
     c = basic_connection
+    c = c.http
 
     @http.socket_options << [Socket::SOL_SOCKET, Socket::SO_KEEPALIVE, 1]
     @http.debug_output = $stderr

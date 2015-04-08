@@ -7,6 +7,7 @@ end if RUBY_VERSION < '1.9' # but only for 1.8
 require 'net/http/faster'
 require 'uri'
 require 'cgi' # for escaping
+require 'connection_pool'
 
 begin
   require 'net/http/pipeline'
@@ -252,31 +253,31 @@ class Net::HTTP::Persistent
 
     http = new 'net-http-persistent detect_idle_timeout'
 
-    connection = http.connection_for uri
+    http.connection_for uri do |connection|
+      sleep_time = 0
 
-    sleep_time = 0
+      http = connection.http
 
-    loop do
-      response = connection.request req
+      loop do
+        response = http.request req
 
-      $stderr.puts "HEAD #{uri} => #{response.code}" if $DEBUG
+        $stderr.puts "HEAD #{uri} => #{response.code}" if $DEBUG
 
-      unless Net::HTTPOK === response then
-        raise Error, "bad response code #{response.code} detecting idle timeout"
+        unless Net::HTTPOK === response then
+          raise Error, "bad response code #{response.code} detecting idle timeout"
+        end
+
+        break if sleep_time >= max
+
+        sleep_time += 1
+
+        $stderr.puts "sleeping #{sleep_time}" if $DEBUG
+        sleep sleep_time
       end
-
-      break if sleep_time >= max
-
-      sleep_time += 1
-
-      $stderr.puts "sleeping #{sleep_time}" if $DEBUG
-      sleep sleep_time
     end
   rescue
     # ignore StandardErrors, we've probably found the idle timeout.
   ensure
-    http.shutdown
-
     return sleep_time unless $!
   end
 
@@ -398,14 +399,14 @@ class Net::HTTP::Persistent
   attr_reader :no_proxy
 
   ##
+  # Test-only accessor for the connection pool
+
+  attr_reader :pool # :nodoc:
+
+  ##
   # Seconds to wait until reading one block.  See Net::HTTP#read_timeout
 
   attr_accessor :read_timeout
-
-  ##
-  # Where this instance's request counts live in the thread local variables
-
-  attr_reader :request_key # :nodoc:
 
   ##
   # By default SSL sessions are reused to avoid extra SSL handshakes.  Set
@@ -519,6 +520,7 @@ class Net::HTTP::Persistent
     @idle_timeout     = 5
     @max_requests     = nil
     @socket_options   = []
+    @ssl_generation   = 0 # incremented when SSL session variables change
 
     @socket_options << [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1] if
       Socket.const_defined? :TCP_NODELAY
@@ -526,8 +528,12 @@ class Net::HTTP::Persistent
     key = ['net_http_persistent', name].compact
     @generation_key     = [key, 'generations'    ].join('_').intern
     @ssl_generation_key = [key, 'ssl_generations'].join('_').intern
-    @request_key        = [key, 'requests'       ].join('_').intern
     @timeout_key        = [key, 'timeouts'       ].join('_').intern
+
+    pool_size = Process.getrlimit(Process::RLIMIT_NOFILE).first / 4
+    @pool     = Net::HTTP::Persistent::Pool.new size: pool_size do |http_args|
+      Net::HTTP::Persistent::Connection.new http_class, http_args, @ssl_generation
+    end
 
     @certificate        = nil
     @ca_file            = nil
@@ -542,7 +548,6 @@ class Net::HTTP::Persistent
     @cert_store         = nil
 
     @generation         = 0 # incremented when proxy URI changes
-    @ssl_generation     = 0 # incremented when SSL session variables change
 
     if HAVE_OPENSSL then
       @verify_mode        = OpenSSL::SSL::VERIFY_PEER
@@ -633,64 +638,45 @@ class Net::HTTP::Persistent
   # Creates a new connection for +uri+
 
   def connection_for uri
-    Thread.current[@generation_key]     ||= Hash.new { |h,k| h[k] = {} }
-    Thread.current[@ssl_generation_key] ||= Hash.new { |h,k| h[k] = {} }
-    Thread.current[@request_key]        ||= Hash.new 0
     Thread.current[@timeout_key]        ||= Hash.new EPOCH
 
     use_ssl = uri.scheme.downcase == 'https'
 
-    if use_ssl then
-      raise Net::HTTP::Persistent::Error, 'OpenSSL is not available' unless
-        HAVE_OPENSSL
-
-      ssl_generation = @ssl_generation
-
-      ssl_cleanup ssl_generation
-
-      connections = Thread.current[@ssl_generation_key][ssl_generation]
-    else
-      generation = @generation
-
-      cleanup generation
-
-      connections = Thread.current[@generation_key][generation]
-    end
-
     net_http_args = [uri.host, uri.port]
-    connection_id = net_http_args.join ':'
 
-    if @proxy_uri and not proxy_bypass? uri.host, uri.port then
-      connection_id << @proxy_connection_id
-      net_http_args.concat @proxy_args
+    net_http_args.concat @proxy_args if
+      @proxy_uri and not proxy_bypass? uri.host, uri.port
+
+    connection = @pool.checkout net_http_args
+
+    http = connection.http
+
+    connection.ressl @ssl_generation if
+      connection.ssl_generation != @ssl_generation
+
+    if not http.started? then
+      ssl   http if use_ssl
+      start http
+    elsif expired? connection then
+      reset connection
     end
 
-    connection = connections[connection_id]
+    http.read_timeout = @read_timeout if @read_timeout
+    http.keep_alive_timeout = @idle_timeout if @idle_timeout && http.respond_to?(:keep_alive_timeout=)
 
-    unless connection = connections[connection_id] then
-      connections[connection_id] = http_class.new(*net_http_args)
-      connection = connections[connection_id]
-      ssl connection if use_ssl
-    else
-      reset connection if expired? connection
-    end
-
-    start connection unless connection.started?
-
-    connection.read_timeout = @read_timeout if @read_timeout
-    connection.keep_alive_timeout = @idle_timeout if @idle_timeout && connection.respond_to?(:keep_alive_timeout=)
-
-    connection
+    return yield connection
   rescue Errno::ECONNREFUSED
-    address = connection.proxy_address || connection.address
-    port    = connection.proxy_port    || connection.port
+    address = http.proxy_address || http.address
+    port    = http.proxy_port    || http.port
 
     raise Error, "connection refused: #{address}:#{port}"
   rescue Errno::EHOSTDOWN
-    address = connection.proxy_address || connection.address
-    port    = connection.proxy_port    || connection.port
+    address = http.proxy_address || http.address
+    port    = http.proxy_port    || http.port
 
     raise Error, "host down: #{address}:#{port}"
+  ensure
+    @pool.checkin net_http_args
   end
 
   ##
@@ -698,12 +684,11 @@ class Net::HTTP::Persistent
   # this connection
 
   def error_message connection
-    requests = Thread.current[@request_key][connection.object_id] - 1 # fixup
-    last_use = Thread.current[@timeout_key][connection.object_id]
+    connection.requests -= 1 # fixup
 
-    age = Time.now - last_use
+    age = Time.now - connection.last_use
 
-    "after #{requests} requests on #{connection.object_id}, " \
+    "after #{connection.requests} requests on #{connection.http.object_id}, " \
       "last used #{age} seconds ago"
   end
 
@@ -727,26 +712,23 @@ class Net::HTTP::Persistent
   # maximum request count, false otherwise.
 
   def expired? connection
-    requests = Thread.current[@request_key][connection.object_id]
-    return true  if     @max_requests && requests >= @max_requests
+    return true  if     @max_requests && connection.requests >= @max_requests
     return false unless @idle_timeout
     return true  if     @idle_timeout.zero?
 
-    last_used = Thread.current[@timeout_key][connection.object_id]
-
-    Time.now - last_used > @idle_timeout
+    Time.now - connection.last_use > @idle_timeout
   end
 
   ##
   # Starts the Net::HTTP +connection+
 
-  def start connection
-    connection.set_debug_output @debug_output if @debug_output
-    connection.open_timeout = @open_timeout if @open_timeout
+  def start http
+    http.set_debug_output @debug_output if @debug_output
+    http.open_timeout = @open_timeout if @open_timeout
 
-    connection.start
+    http.start
 
-    socket = connection.instance_variable_get :@socket
+    socket = http.instance_variable_get :@socket
 
     if socket then # for fakeweb
       @socket_options.each do |option|
@@ -758,13 +740,8 @@ class Net::HTTP::Persistent
   ##
   # Finishes the Net::HTTP +connection+
 
-  def finish connection, thread = Thread.current
-    if requests = thread[@request_key] then
-      requests.delete connection.object_id
-    end
-
+  def finish connection
     connection.finish
-  rescue IOError
   end
 
   def http_class # :nodoc:
@@ -869,9 +846,9 @@ class Net::HTTP::Persistent
   # <tt>net-http-persistent</tt> #pipeline will be present.
 
   def pipeline uri, requests, &block # :yields: responses
-    connection = connection_for uri
-
-    connection.pipeline requests, &block
+    connection_for uri do |connection|
+      connection.http.pipeline requests, &block
+    end
   end
 
   ##
@@ -1004,18 +981,17 @@ class Net::HTTP::Persistent
   # Finishes then restarts the Net::HTTP +connection+
 
   def reset connection
-    Thread.current[@request_key].delete connection.object_id
-    Thread.current[@timeout_key].delete connection.object_id
+    http = connection.http
 
     finish connection
 
-    start connection
+    start http
   rescue Errno::ECONNREFUSED
-    e = Error.new "connection refused: #{connection.address}:#{connection.port}"
+    e = Error.new "connection refused: #{http.address}:#{http.port}"
     e.set_backtrace $@
     raise e
   rescue Errno::EHOSTDOWN
-    e = Error.new "host down: #{connection.address}:#{connection.port}"
+    e = Error.new "host down: #{http.address}:#{http.port}"
     e.set_backtrace $@
     raise e
   end
@@ -1036,52 +1012,55 @@ class Net::HTTP::Persistent
     retried      = false
     bad_response = false
 
-    req = request_setup req || uri
+    req      = request_setup req || uri
+    response = nil
 
-    connection = connection_for uri
-    connection_id = connection.object_id
+    connection_for uri do |connection|
+      http = connection.http
 
-    begin
-      Thread.current[@request_key][connection_id] += 1
-      response = connection.request req, &block
+      begin
+        connection.requests += 1
 
-      if connection_close?(req) or
-         (response.http_version <= '1.0' and
-          not connection_keep_alive?(response)) or
-         connection_close?(response) then
-        connection.finish
-      end
-    rescue Net::HTTPBadResponse => e
-      message = error_message connection
+        response = http.request req, &block
 
-      finish connection
+        if connection_close?(req) or
+           (response.http_version <= '1.0' and
+            not connection_keep_alive?(response)) or
+           connection_close?(response) then
+          finish connection
+        end
+      rescue Net::HTTPBadResponse => e
+        message = error_message connection
 
-      raise Error, "too many bad responses #{message}" if
+        finish connection
+
+        raise Error, "too many bad responses #{message}" if
         bad_response or not can_retry? req
 
-      bad_response = true
-      retry
-    rescue *RETRIED_EXCEPTIONS => e # retried on ruby 2
-      request_failed e, req, connection if
-        retried or not can_retry? req, @retried_on_ruby_2
+        bad_response = true
+        retry
+      rescue *RETRIED_EXCEPTIONS => e # retried on ruby 2
+        request_failed e, req, connection if
+          retried or not can_retry? req, @retried_on_ruby_2
 
-      reset connection
+        reset connection
 
-      retried = true
-      retry
-    rescue Errno::EINVAL, Errno::ETIMEDOUT => e # not retried on ruby 2
-      request_failed e, req, connection if retried or not can_retry? req
+        retried = true
+        retry
+      rescue Errno::EINVAL, Errno::ETIMEDOUT => e # not retried on ruby 2
+        request_failed e, req, connection if retried or not can_retry? req
 
-      reset connection
+        reset connection
 
-      retried = true
-      retry
-    rescue Exception => e
-      finish connection
+        retried = true
+        retry
+      rescue Exception => e
+        finish connection
 
-      raise
-    ensure
-      Thread.current[@timeout_key][connection_id] = Time.now
+        raise
+      ensure
+        connection.last_use = Time.now
+      end
     end
 
     @http_versions["#{uri.host}:#{uri.port}"] ||= response.http_version
@@ -1100,7 +1079,6 @@ class Net::HTTP::Persistent
     message = "too many connection resets #{due_to} #{error_message connection}"
 
     finish connection
-
 
     raise Error, message, exception.backtrace
   end
@@ -1135,45 +1113,17 @@ class Net::HTTP::Persistent
   end
 
   ##
-  # Shuts down all connections for +thread+.
+  # Shuts down all connections
   #
-  # Uses the current thread by default.
+  # *NOTE*: Calling shutdown for can be dangerous!
   #
-  # If you've used Net::HTTP::Persistent across multiple threads you should
-  # call this in each thread when you're done making HTTP requests.
-  #
-  # *NOTE*: Calling shutdown for another thread can be dangerous!
-  #
-  # If the thread is still using the connection it may cause an error!  It is
-  # best to call #shutdown in the thread at the appropriate time instead!
+  # If any thread is still using a connection it may cause an error!  Call
+  # #shutdown when you are completely done making requests!
 
-  def shutdown thread = Thread.current
-    generation = reconnect
-    cleanup generation, thread, @generation_key
-
-    ssl_generation = reconnect_ssl
-    cleanup ssl_generation, thread, @ssl_generation_key
-
-    thread[@request_key] = nil
-    thread[@timeout_key] = nil
-  end
-
-  ##
-  # Shuts down all connections in all threads
-  #
-  # *NOTE*: THIS METHOD IS VERY DANGEROUS!
-  #
-  # Do not call this method if other threads are still using their
-  # connections!  Call #shutdown at the appropriate time instead!
-  #
-  # Use this method only as a last resort!
-
-  def shutdown_in_all_threads
-    Thread.list.each do |thread|
-      shutdown thread
+  def shutdown
+    @pool.available.shutdown do |http|
+      http.finish
     end
-
-    nil
   end
 
   ##
@@ -1239,14 +1189,6 @@ application:
   end
 
   ##
-  # Finishes all connections that existed before the given SSL parameter
-  # +generation+.
-
-  def ssl_cleanup generation # :nodoc:
-    cleanup generation, Thread.current, @ssl_generation_key
-  end
-
-  ##
   # SSL session lifetime
 
   def ssl_timeout= ssl_timeout
@@ -1297,5 +1239,7 @@ application:
 
 end
 
+require 'net/http/persistent/connection'
+require 'net/http/persistent/pool'
 require 'net/http/persistent/ssl_reuse'
 
