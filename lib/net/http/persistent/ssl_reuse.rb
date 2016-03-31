@@ -64,7 +64,8 @@ class Net::HTTP::Persistent::SSLReuse < Net::HTTP
           @socket.writeline ''
           Net::HTTPResponse.read_new(@socket).value
         end
-        s.session = @ssl_session if @ssl_session
+        # session= is not implemented in JRuby
+        s.session = @ssl_session if @ssl_session unless defined? JRUBY_VERSION
         # Server Name Indication (SNI) RFC 3546
         s.hostname = @address if s.respond_to? :hostname=
         timeout(@open_timeout) { s.connect }
