@@ -642,7 +642,7 @@ class Net::HTTP::Persistent
 
     use_ssl = uri.scheme.downcase == 'https'
 
-    net_http_args = [uri.host, uri.port]
+    net_http_args = [uri.hostname, uri.port]
 
     net_http_args.concat @proxy_args if
       @proxy_uri and not proxy_bypass? uri.host, uri.port
