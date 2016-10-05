@@ -201,6 +201,11 @@ class Net::HTTP::Persistent
   HAVE_OPENSSL = defined? OpenSSL::SSL # :nodoc:
 
   ##
+  # The default connection pool size is 1/4 the allowed open files.
+
+  DEFAULT_POOL_SIZE = Process.getrlimit(Process::RLIMIT_NOFILE).first / 4
+
+  ##
   # The version of Net::HTTP::Persistent you are using
 
   VERSION = '2.9.4'
@@ -499,8 +504,12 @@ class Net::HTTP::Persistent
   #   proxy = URI 'http://proxy.example'
   #   proxy.user     = 'AzureDiamond'
   #   proxy.password = 'hunter2'
+  #
+  # Set +pool_size+ to limit the maximum number of connections allowed.
+  # Defaults to 1/4 the number of allowed file handles.  You can have no more
+  # than this many threads with active HTTP transactions.
 
-  def initialize name = nil, proxy = nil
+  def initialize name: nil, proxy: nil, pool_size: DEFAULT_POOL_SIZE
     @name = name
 
     @debug_output     = nil
@@ -525,8 +534,7 @@ class Net::HTTP::Persistent
     @ssl_generation_key = [key, 'ssl_generations'].join('_').intern
     @timeout_key        = [key, 'timeouts'       ].join('_').intern
 
-    pool_size = Process.getrlimit(Process::RLIMIT_NOFILE).first / 4
-    @pool     = Net::HTTP::Persistent::Pool.new size: pool_size do |http_args|
+    @pool = Net::HTTP::Persistent::Pool.new size: pool_size do |http_args|
       Net::HTTP::Persistent::Connection.new Net::HTTP, http_args, @ssl_generation
     end
 
