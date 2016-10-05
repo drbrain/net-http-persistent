@@ -13,6 +13,8 @@ Hoe.spec 'net-http-persistent' do
   self.readme_file      = 'README.rdoc'
   self.extra_rdoc_files += Dir['*.rdoc']
 
+  self.require_ruby_version '~> 2.1'
+
   license 'MIT'
 
   rdoc_locations <<
