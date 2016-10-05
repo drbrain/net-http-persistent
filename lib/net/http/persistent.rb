@@ -1176,5 +1176,4 @@ end
 
 require 'net/http/persistent/connection'
 require 'net/http/persistent/pool'
-require 'net/http/persistent/ssl_reuse'
 

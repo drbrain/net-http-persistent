@@ -450,16 +450,6 @@ class TestNetHttpPersistent < Minitest::Test
     end
   end
 
-  def test_connection_for_no_ssl_reuse
-    @http.reuse_ssl_sessions = false
-    @http.open_timeout = 123
-    @http.read_timeout = 321
-
-    @http.connection_for @uri do |c|
-      assert_instance_of Net::HTTP, c.http
-    end
-  end
-
   def test_connection_for_proxy
     uri = URI.parse 'http://proxy.example'
     uri.user     = 'johndoe'
