@@ -1,8 +1,21 @@
-=== 2.9.5 / 2014-11-20
+=== 3.0
 
-* Bug fixes
-  * Add missing SSL options ca_path, ciphers, ssl_timeout, verify_depth.
-    Issue #63 by Johnneylee Jack Rollins.
+Breaking changes:
+
+* No longer supports ruby 2.0 and earlier
+* Net::HTTP::Persistent::new now uses keyword arguments for +name+ and
+  +proxy+.
+* Removed #max_age, use #expired?
+
+New features:
+
+* Uses connection_pool to manage all connections for a Net::HTTP::Persistent
+  instance.
+
+Bug fixes:
+
+* Add missing SSL options ca_path, ciphers, ssl_timeout, verify_depth.
+  Issue #63 by Johnneylee Jack Rollins.
 
 === 2.9.4 / 2014-02-10
 
