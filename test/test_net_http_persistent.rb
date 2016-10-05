@@ -177,7 +177,7 @@ class TestNetHttpPersistent < Minitest::Test
   end
 
   def test_initialize_name
-    http = Net::HTTP::Persistent.new 'name'
+    http = Net::HTTP::Persistent.new name: 'name'
     assert_equal 'name', http.name
   end
 
@@ -201,7 +201,7 @@ class TestNetHttpPersistent < Minitest::Test
   def test_initialize_proxy
     proxy_uri = URI.parse 'http://proxy.example'
 
-    http = Net::HTTP::Persistent.new nil, proxy_uri
+    http = Net::HTTP::Persistent.new proxy: proxy_uri
 
     assert_equal proxy_uri, http.proxy_uri
   end
@@ -442,7 +442,7 @@ class TestNetHttpPersistent < Minitest::Test
   end
 
   def test_connection_for_name
-    http = Net::HTTP::Persistent.new 'name'
+    http = Net::HTTP::Persistent.new name: 'name'
     uri = URI.parse 'http://example/'
 
     http.connection_for uri do |c|
@@ -455,7 +455,7 @@ class TestNetHttpPersistent < Minitest::Test
     uri.user     = 'johndoe'
     uri.password = 'muffins'
 
-    http = Net::HTTP::Persistent.new nil, uri
+    http = Net::HTTP::Persistent.new proxy: uri
 
     used = http.connection_for @uri do |c|
       assert c.http.started?
@@ -477,7 +477,7 @@ class TestNetHttpPersistent < Minitest::Test
     uri.password = 'muf%3Afins'
     uri.freeze
 
-    http = Net::HTTP::Persistent.new nil, uri
+    http = Net::HTTP::Persistent.new proxy: uri
 
     http.connection_for @uri do end
 
@@ -495,7 +495,7 @@ class TestNetHttpPersistent < Minitest::Test
     uri.user     = 'johndoe'
     uri.password = 'muffins'
 
-    http = Net::HTTP::Persistent.new nil, uri
+    http = Net::HTTP::Persistent.new proxy: uri
 
     e = assert_raises Net::HTTP::Persistent::Error do
       http.connection_for @uri do end
@@ -511,7 +511,7 @@ class TestNetHttpPersistent < Minitest::Test
     uri.user     = 'johndoe'
     uri.password = 'muffins'
 
-    http = Net::HTTP::Persistent.new nil, uri
+    http = Net::HTTP::Persistent.new proxy: uri
 
     e = assert_raises Net::HTTP::Persistent::Error do
       http.connection_for @uri do end
@@ -526,7 +526,7 @@ class TestNetHttpPersistent < Minitest::Test
     uri.password = 'muffins'
     uri.query    = 'no_proxy=example.com'
 
-    http = Net::HTTP::Persistent.new nil, uri
+    http = Net::HTTP::Persistent.new proxy: uri
 
     http.connection_for @uri do |c|
       assert c.http.started?
@@ -1360,7 +1360,7 @@ class TestNetHttpPersistent < Minitest::Test
     c = connection
 
     orig = @http
-    @http = Net::HTTP::Persistent.new 'name'
+    @http = Net::HTTP::Persistent.new name: 'name'
     c2 = connection
 
     orig.shutdown
