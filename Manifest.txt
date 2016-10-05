@@ -1,5 +1,6 @@
 .autotest
 .gemtest
+.travis.yml
 History.txt
 Manifest.txt
 README.rdoc
