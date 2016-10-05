@@ -51,10 +51,6 @@ class Net::HTTP
   include Net::HTTP::Persistent::TestConnect
 end
 
-class Net::HTTP::Persistent::SSLReuse
-  include Net::HTTP::Persistent::TestConnect
-end
-
 class TestNetHttpPersistent < Minitest::Test
 
   def setup
@@ -72,12 +68,10 @@ class TestNetHttpPersistent < Minitest::Test
     ENV.delete 'NO_PROXY'
 
     Net::HTTP.use_connect :test_connect
-    Net::HTTP::Persistent::SSLReuse.use_connect :test_connect
   end
 
   def teardown
     Net::HTTP.use_connect :orig_connect
-    Net::HTTP::Persistent::SSLReuse.use_connect :orig_connect
   end
 
   class BasicConnection
@@ -506,7 +500,6 @@ class TestNetHttpPersistent < Minitest::Test
 
   def test_connection_for_proxy_host_down
     Net::HTTP.use_connect :host_down_connect
-    Net::HTTP::Persistent::SSLReuse.use_connect :host_down_connect
 
     uri = URI.parse 'http://proxy.example'
     uri.user     = 'johndoe'
@@ -523,7 +516,6 @@ class TestNetHttpPersistent < Minitest::Test
 
   def test_connection_for_proxy_refused
     Net::HTTP.use_connect :refused_connect
-    Net::HTTP::Persistent::SSLReuse.use_connect :refused_connect
 
     uri = URI.parse 'http://proxy.example'
     uri.user     = 'johndoe'
@@ -558,7 +550,6 @@ class TestNetHttpPersistent < Minitest::Test
 
   def test_connection_for_refused
     Net::HTTP.use_connect :refused_connect
-    Net::HTTP::Persistent::SSLReuse.use_connect :refused_connect
 
     e = assert_raises Net::HTTP::Persistent::Error do
       @http.connection_for @uri do end
