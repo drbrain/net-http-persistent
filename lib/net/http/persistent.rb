@@ -1012,6 +1012,7 @@ class Net::HTTP::Persistent
     retried      = false
     bad_response = false
 
+    uri      = URI uri
     req      = request_setup req || uri
     response = nil
 

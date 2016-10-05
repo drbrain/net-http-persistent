@@ -1350,6 +1350,22 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal '30',         req['keep-alive']
   end
 
+  def test_request_string
+    @http.override_headers['user-agent'] = 'test ua'
+    @http.headers['accept'] = 'text/*'
+    c = connection
+
+    res = @http.request @uri.to_s
+    req = c.http.req
+
+    assert_kind_of Net::HTTPResponse, res
+
+    assert_kind_of Net::HTTP::Get, req
+    assert_equal '/path',      req.path
+
+    assert_equal 1, c.requests
+  end
+
   def test_request_setup_uri
     uri = @uri + '?a=b'
 
