@@ -762,22 +762,6 @@ class Net::HTTP::Persistent
   end
 
   ##
-  # Workaround for missing Net::HTTPRequest#connection_close? on Ruby 1.8
-
-  def connection_close? header
-    header['connection'] =~ /close/ or header['proxy-connection'] =~ /close/
-  end
-
-  ##
-  # Workaround for missing Net::HTTPRequest#connection_keep_alive? on Ruby
-  # 1.8
-
-  def connection_keep_alive? header
-    header['connection'] =~ /keep-alive/ or
-      header['proxy-connection'] =~ /keep-alive/
-  end
-
-  ##
   # Deprecated in favor of #expired?
 
   def max_age # :nodoc:
@@ -983,10 +967,10 @@ class Net::HTTP::Persistent
 
         response = http.request req, &block
 
-        if connection_close?(req) or
+        if req.connection_close? or
            (response.http_version <= '1.0' and
-            not connection_keep_alive?(response)) or
-           connection_close?(response) then
+            not response.connection_keep_alive?) or
+           response.connection_close? then
           finish connection
         end
       rescue Net::HTTPBadResponse => e
