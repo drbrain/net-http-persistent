@@ -1,9 +1,4 @@
 require 'net/http'
-begin
-  require 'net/https'
-rescue LoadError
-  # net/https or openssl
-end if RUBY_VERSION < '1.9' # but only for 1.8
 require 'net/http/faster'
 require 'uri'
 require 'cgi' # for escaping
@@ -449,7 +444,7 @@ class Net::HTTP::Persistent
   # By default, the version will be negotiated automatically between client
   # and server.  Ruby 1.9 and newer only.
 
-  attr_reader :ssl_version if RUBY_VERSION > '1.9'
+  attr_reader :ssl_version
 
   ##
   # Where this instance's last-use times live in the thread local variables
@@ -532,7 +527,7 @@ class Net::HTTP::Persistent
 
     pool_size = Process.getrlimit(Process::RLIMIT_NOFILE).first / 4
     @pool     = Net::HTTP::Persistent::Pool.new size: pool_size do |http_args|
-      Net::HTTP::Persistent::Connection.new http_class, http_args, @ssl_generation
+      Net::HTTP::Persistent::Connection.new Net::HTTP, http_args, @ssl_generation
     end
 
     @certificate        = nil
@@ -555,9 +550,6 @@ class Net::HTTP::Persistent
     end
 
     @retry_change_requests = false
-
-    @ruby_1 = RUBY_VERSION < '2'
-    @retried_on_ruby_2 = !@ruby_1
 
     self.proxy = proxy if proxy
   end
@@ -744,18 +736,6 @@ class Net::HTTP::Persistent
     connection.finish
   end
 
-  def http_class # :nodoc:
-    if RUBY_VERSION > '2.0' then
-      Net::HTTP
-    elsif [:Artifice, :FakeWeb, :WebMock].any? { |klass|
-             Object.const_defined?(klass)
-          } or not @reuse_ssl_sessions then
-        Net::HTTP
-    else
-      Net::HTTP::Persistent::SSLReuse
-    end
-  end
-
   ##
   # Returns the HTTP protocol version for +uri+
 
@@ -776,46 +756,25 @@ class Net::HTTP::Persistent
 
   ##
   # Is the request +req+ idempotent or is retry_change_requests allowed.
-  #
-  # If +retried_on_ruby_2+ is true, true will be returned if we are on ruby,
-  # retry_change_requests is allowed and the request is not idempotent.
 
-  def can_retry? req, retried_on_ruby_2 = false
-    return @retry_change_requests && !idempotent?(req) if retried_on_ruby_2
-
-    @retry_change_requests || idempotent?(req)
+  def can_retry? req
+    @retry_change_requests && !idempotent?(req)
   end
 
-  if RUBY_VERSION > '1.9' then
-    ##
-    # Workaround for missing Net::HTTPHeader#connection_close? on Ruby 1.8
+  ##
+  # Workaround for missing Net::HTTPRequest#connection_close? on Ruby 1.8
 
-    def connection_close? header
-      header.connection_close?
-    end
+  def connection_close? header
+    header['connection'] =~ /close/ or header['proxy-connection'] =~ /close/
+  end
 
-    ##
-    # Workaround for missing Net::HTTPHeader#connection_keep_alive? on Ruby 1.8
+  ##
+  # Workaround for missing Net::HTTPRequest#connection_keep_alive? on Ruby
+  # 1.8
 
-    def connection_keep_alive? header
-      header.connection_keep_alive?
-    end
-  else
-    ##
-    # Workaround for missing Net::HTTPRequest#connection_close? on Ruby 1.8
-
-    def connection_close? header
-      header['connection'] =~ /close/ or header['proxy-connection'] =~ /close/
-    end
-
-    ##
-    # Workaround for missing Net::HTTPRequest#connection_keep_alive? on Ruby
-    # 1.8
-
-    def connection_keep_alive? header
-      header['connection'] =~ /keep-alive/ or
-        header['proxy-connection'] =~ /keep-alive/
-    end
+  def connection_keep_alive? header
+    header['connection'] =~ /keep-alive/ or
+      header['proxy-connection'] =~ /keep-alive/
   end
 
   ##
@@ -1040,9 +999,9 @@ class Net::HTTP::Persistent
 
         bad_response = true
         retry
-      rescue *RETRIED_EXCEPTIONS => e # retried on ruby 2
+      rescue *RETRIED_EXCEPTIONS => e
         request_failed e, req, connection if
-          retried or not can_retry? req, @retried_on_ruby_2
+          retried or not can_retry? req
 
         reset connection
 
@@ -1205,7 +1164,7 @@ application:
     @ssl_version = ssl_version
 
     reconnect_ssl
-  end if RUBY_VERSION > '1.9'
+  end
 
   ##
   # Sets the depth of SSL certificate verification

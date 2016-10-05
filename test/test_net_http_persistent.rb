@@ -57,15 +57,7 @@ end
 
 class TestNetHttpPersistent < Minitest::Test
 
-  RUBY_1 = RUBY_VERSION < '2'
-
   def setup
-    @http_class = if RUBY_1 and HAVE_OPENSSL then
-                    Net::HTTP::Persistent::SSLReuse
-                  else
-                    Net::HTTP
-                  end
-
     @http = Net::HTTP::Persistent.new
 
     @uri  = URI.parse 'http://example.com/path'
@@ -244,27 +236,14 @@ class TestNetHttpPersistent < Minitest::Test
     assert @http.can_retry? post
   end
 
-  if RUBY_1 then
-    def test_can_retry_eh_idempotent
-      head = Net::HTTP::Head.new '/'
+  def test_can_retry_eh_idempotent
+    head = Net::HTTP::Head.new '/'
 
-      assert @http.can_retry? head
+    refute @http.can_retry? head
 
-      post = Net::HTTP::Post.new '/'
+    post = Net::HTTP::Post.new '/'
 
-      refute @http.can_retry? post
-    end
-  else
-    def test_can_retry_eh_idempotent
-      head = Net::HTTP::Head.new '/'
-
-      assert @http.can_retry? head
-      refute @http.can_retry? head, true
-
-      post = Net::HTTP::Post.new '/'
-
-      refute @http.can_retry? post
-    end
+    refute @http.can_retry? post
   end
 
   def test_cert_store_equals
@@ -294,14 +273,14 @@ class TestNetHttpPersistent < Minitest::Test
     @http.idle_timeout = 42
 
     used = @http.connection_for @uri do |c|
-      assert_kind_of @http_class, c.http
+      assert_kind_of Net::HTTP, c.http
 
       assert c.http.started?
       refute c.http.proxy?
 
       assert_equal 123, c.http.open_timeout
       assert_equal 321, c.http.read_timeout
-      assert_equal 42, c.http.keep_alive_timeout unless RUBY_1
+      assert_equal 42, c.http.keep_alive_timeout
 
       c
     end
@@ -1027,38 +1006,17 @@ class TestNetHttpPersistent < Minitest::Test
     assert_match %r%too many bad responses%, e.message
   end
 
-  if RUBY_1 then
-    def test_request_bad_response_retry
-      c = basic_connection
-      def (c.http).request(*a)
-        if defined? @called then
-          r = Net::HTTPResponse.allocate
-          r.instance_variable_set :@header, {}
-          def r.http_version() '1.1' end
-          r
-        else
-          @called = true
-          raise Net::HTTPBadResponse
-        end
-      end
+  def test_request_bad_response_retry
+    c = basic_connection
+    def (c.http).request(*a)
+      raise Net::HTTPBadResponse
+    end
 
+    assert_raises Net::HTTP::Persistent::Error do
       @http.request @uri
-
-      assert c.http.finished?
     end
-  else
-    def test_request_bad_response_retry
-      c = basic_connection
-      def (c.http).request(*a)
-        raise Net::HTTPBadResponse
-      end
 
-      assert_raises Net::HTTP::Persistent::Error do
-        @http.request @uri
-      end
-
-      assert c.http.finished?
-    end
+    assert c.http.finished?
   end
 
   def test_request_bad_response_unsafe
@@ -1213,28 +1171,6 @@ class TestNetHttpPersistent < Minitest::Test
     assert_match %r%too many connection resets%, e.message
   end
 
-  def test_request_invalid_retry
-    c = basic_connection
-    c.last_use = Time.now
-
-    def (c.http).request(*a)
-      if defined? @called then
-        r = Net::HTTPResponse.allocate
-        r.instance_variable_set :@header, {}
-        def r.http_version() '1.1' end
-        r
-      else
-        @called = true
-        raise Errno::EINVAL, "write"
-      end
-    end
-
-    @http.request @uri
-
-    assert c.http.reset?
-    assert c.http.finished?
-  end
-
   def test_request_post
     c = connection
 
@@ -1258,43 +1194,20 @@ class TestNetHttpPersistent < Minitest::Test
     assert_match %r%too many connection resets%, e.message
   end
 
-  if RUBY_1 then
-    def test_request_reset_retry
-      c = basic_connection
-      c.last_use = Time.now
-      def (c.http).request(*a)
-        if defined? @called then
-          r = Net::HTTPResponse.allocate
-          r.instance_variable_set :@header, {}
-          def r.http_version() '1.1' end
-          r
-        else
-          @called = true
-          raise Errno::ECONNRESET
-        end
-      end
+  def test_request_reset_retry
+    c = basic_connection
+    c.last_use = Time.now
 
+    def (c.http).request(*a)
+      raise Errno::ECONNRESET
+    end
+
+    assert_raises Net::HTTP::Persistent::Error do
       @http.request @uri
-
-      assert c.http.reset?
-      assert c.http.finished?
     end
-  else
-    def test_request_reset_retry
-      c = basic_connection
-      c.last_use = Time.now
 
-      def (c.http).request(*a)
-        raise Errno::ECONNRESET
-      end
-
-      assert_raises Net::HTTP::Persistent::Error do
-        @http.request @uri
-      end
-
-      refute (c.http).reset?
-      assert (c.http).finished?
-    end
+    refute (c.http).reset?
+    assert (c.http).finished?
   end
 
   def test_request_reset_unsafe
@@ -1459,25 +1372,14 @@ class TestNetHttpPersistent < Minitest::Test
 
     refute @http.retry_change_requests
 
-    if RUBY_1 then
-      assert @http.can_retry?(get)
-    else
-      assert @http.can_retry?(get)
-    end
-    refute @http.can_retry?(get, true)
+    refute @http.can_retry?(get)
     refute @http.can_retry?(post)
 
     @http.retry_change_requests = true
 
     assert @http.retry_change_requests
 
-    if RUBY_1 then
-      assert @http.can_retry?(get)
-    else
-      assert @http.can_retry?(get)
-      refute @http.can_retry?(get, true)
-    end
-
+    refute @http.can_retry?(get)
     assert @http.can_retry?(post)
   end
 
@@ -1636,7 +1538,7 @@ class TestNetHttpPersistent < Minitest::Test
 
     assert_equal :ssl_version, @http.ssl_version
     assert_equal 1, @http.ssl_generation
-  end unless RUBY_1
+  end
 
   def test_start
     c = basic_connection
