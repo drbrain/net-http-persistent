@@ -727,14 +727,6 @@ class TestNetHttpPersistent < Minitest::Test
     refute @http.idempotent? Net::HTTP::Post.new '/'
   end
 
-  def test_max_age
-    assert_in_delta Time.now - 5, @http.max_age
-
-    @http.idle_timeout = nil
-
-    assert_in_delta Time.now + 1, @http.max_age
-  end
-
   def test_normalize_uri
     assert_equal 'http://example',  @http.normalize_uri('example')
     assert_equal 'http://example',  @http.normalize_uri('http://example')

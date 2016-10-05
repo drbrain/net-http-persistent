@@ -762,15 +762,6 @@ class Net::HTTP::Persistent
   end
 
   ##
-  # Deprecated in favor of #expired?
-
-  def max_age # :nodoc:
-    return Time.now + 1 unless @idle_timeout
-
-    Time.now - @idle_timeout
-  end
-
-  ##
   # Adds "http://" to the String +uri+ if it is missing.
 
   def normalize_uri uri
