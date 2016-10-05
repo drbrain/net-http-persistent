@@ -18,7 +18,7 @@ Hoe.spec 'net-http-persistent' do
   rdoc_locations <<
     'docs.seattlerb.org:/data/www/docs.seattlerb.org/net-http-persistent/'
 
-  dependency 'connection_pool', '~> 2.1'
+  dependency 'connection_pool', '~> 2.2'
   dependency 'minitest',        '~> 5.2', :development
 end
 
