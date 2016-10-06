@@ -1,4 +1,4 @@
-class Net::HTTP::Persistent::TimedStackMulti < ConnectionPool::TimedStack
+class Net::HTTP::Persistent::TimedStackMulti < ConnectionPool::TimedStack # :nodoc:
 
   def initialize(size = 0, &block)
     super
