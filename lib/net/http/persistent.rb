@@ -621,7 +621,7 @@ class Net::HTTP::Persistent
     end
 
     http.read_timeout = @read_timeout if @read_timeout
-    http.keep_alive_timeout = @idle_timeout if @idle_timeout && http.respond_to?(:keep_alive_timeout=)
+    http.keep_alive_timeout = @idle_timeout if @idle_timeout
 
     return yield connection
   rescue Errno::ECONNREFUSED
