@@ -285,7 +285,9 @@ class Net::HTTP::Persistent
 
   attr_reader :certificate
 
+  ##
   # For Net::HTTP parity
+
   alias cert certificate
 
   ##
@@ -379,7 +381,9 @@ class Net::HTTP::Persistent
 
   attr_reader :private_key
 
+  ##
   # For Net::HTTP parity
+
   alias key private_key
 
   ##
