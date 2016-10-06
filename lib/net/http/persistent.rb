@@ -742,6 +742,9 @@ class Net::HTTP::Persistent
 
   def finish connection
     connection.finish
+
+    connection.http.instance_variable_set :@ssl_session, nil unless
+      @reuse_ssl_sessions
   end
 
   ##

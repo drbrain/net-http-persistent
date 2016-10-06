@@ -696,6 +696,20 @@ class TestNetHttpPersistent < Minitest::Test
     assert c.http.finished?
   end
 
+  def test_finish_ssl_no_session_reuse
+    http = Net::HTTP.new 'localhost', 443, ssl: true
+    http.instance_variable_set :@ssl_session, :something
+
+    c = Net::HTTP::Persistent::Connection.allocate
+    c.instance_variable_set :@http, http
+
+    @http.reuse_ssl_sessions = false
+
+    @http.finish c
+
+    assert_nil c.http.instance_variable_get :@ssl_session
+  end
+
   def test_http_version
     assert_nil @http.http_version @uri
 
