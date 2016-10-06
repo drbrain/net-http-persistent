@@ -325,11 +325,6 @@ class Net::HTTP::Persistent
   attr_reader :generation # :nodoc:
 
   ##
-  # Where this instance's connections live in the thread local variables
-
-  attr_reader :generation_key # :nodoc:
-
-  ##
   # Headers that are added to every request using Net::HTTP#add_field
 
   attr_reader :headers
@@ -529,7 +524,6 @@ class Net::HTTP::Persistent
       Socket.const_defined? :TCP_NODELAY
 
     key = ['net_http_persistent', name].compact
-    @generation_key     = [key, 'generations'    ].join('_').intern
     @ssl_generation_key = [key, 'ssl_generations'].join('_').intern
 
     @pool = Net::HTTP::Persistent::Pool.new size: pool_size do |http_args|
@@ -607,25 +601,6 @@ class Net::HTTP::Persistent
     @ciphers = ciphers
 
     reconnect_ssl
-  end
-
-  ##
-  # Finishes all connections on the given +thread+ that were created before
-  # the given +generation+ in the threads +generation_key+ list.
-  #
-  # See #shutdown for a bunch of scary warning about misusing this method.
-
-  def cleanup(generation, thread = Thread.current,
-              generation_key = @generation_key) # :nodoc:
-    (0...generation).each do |old_generation|
-      next unless thread[generation_key]
-
-      conns = thread[generation_key].delete old_generation
-
-      conns.each_value do |conn|
-        finish conn, thread
-      end if conns
-    end
   end
 
   ##
