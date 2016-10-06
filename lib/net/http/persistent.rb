@@ -531,7 +531,6 @@ class Net::HTTP::Persistent
     key = ['net_http_persistent', name].compact
     @generation_key     = [key, 'generations'    ].join('_').intern
     @ssl_generation_key = [key, 'ssl_generations'].join('_').intern
-    @timeout_key        = [key, 'timeouts'       ].join('_').intern
 
     @pool = Net::HTTP::Persistent::Pool.new size: pool_size do |http_args|
       Net::HTTP::Persistent::Connection.new Net::HTTP, http_args, @ssl_generation
@@ -618,8 +617,6 @@ class Net::HTTP::Persistent
 
   def cleanup(generation, thread = Thread.current,
               generation_key = @generation_key) # :nodoc:
-    timeouts = thread[@timeout_key]
-
     (0...generation).each do |old_generation|
       next unless thread[generation_key]
 
@@ -627,8 +624,6 @@ class Net::HTTP::Persistent
 
       conns.each_value do |conn|
         finish conn, thread
-
-        timeouts.delete conn.object_id if timeouts
       end if conns
     end
   end
@@ -637,8 +632,6 @@ class Net::HTTP::Persistent
   # Creates a new connection for +uri+
 
   def connection_for uri
-    Thread.current[@timeout_key]        ||= Hash.new EPOCH
-
     use_ssl = uri.scheme.downcase == 'https'
 
     net_http_args = [uri.host, uri.port]
