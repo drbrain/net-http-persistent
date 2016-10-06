@@ -76,7 +76,7 @@ class TestNetHttpPersistent < Minitest::Test
 
   class BasicConnection
     attr_accessor :started, :finished, :address, :port, :use_ssl,
-                  :read_timeout, :open_timeout
+                  :read_timeout, :open_timeout, :keep_alive_timeout
     attr_accessor :ciphers, :ssl_timeout, :ssl_version,
                   :verify_depth, :verify_mode, :cert_store,
                   :ca_file, :ca_path, :cert, :key
