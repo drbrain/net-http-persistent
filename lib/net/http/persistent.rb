@@ -428,11 +428,6 @@ class Net::HTTP::Persistent
   attr_reader :ssl_generation # :nodoc:
 
   ##
-  # Where this instance's SSL connections live in the thread local variables
-
-  attr_reader :ssl_generation_key # :nodoc:
-
-  ##
   # SSL session lifetime
 
   attr_reader :ssl_timeout
@@ -522,9 +517,6 @@ class Net::HTTP::Persistent
 
     @socket_options << [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1] if
       Socket.const_defined? :TCP_NODELAY
-
-    key = ['net_http_persistent', name].compact
-    @ssl_generation_key = [key, 'ssl_generations'].join('_').intern
 
     @pool = Net::HTTP::Persistent::Pool.new size: pool_size do |http_args|
       Net::HTTP::Persistent::Connection.new Net::HTTP, http_args, @ssl_generation
