@@ -5,7 +5,6 @@ History.txt
 Manifest.txt
 README.rdoc
 Rakefile
-lib/net/http/faster.rb
 lib/net/http/persistent.rb
 lib/net/http/persistent/connection.rb
 lib/net/http/persistent/pool.rb

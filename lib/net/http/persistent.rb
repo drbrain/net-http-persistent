@@ -1,5 +1,4 @@
 require 'net/http'
-require 'net/http/faster'
 require 'uri'
 require 'cgi' # for escaping
 require 'connection_pool'
