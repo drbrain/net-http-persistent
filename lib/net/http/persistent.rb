@@ -49,7 +49,7 @@ autoload :OpenSSL, 'openssl'
 #   post.set_form_data 'some' => 'cool data'
 #
 #   # perform the POST, the URI is always required
-#   response http.request post_uri, post
+#   response = http.request post_uri, post
 #
 # Note that for GET, HEAD and other requests that do not have a body you want
 # to use URI#request_uri not URI#path.  The request_uri contains the query
