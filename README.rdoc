@@ -44,6 +44,11 @@ connection is kept alive between requests:
 
     # perform the POST, the URI is always required
     response = http.request post_uri, post
+    
+    # reuse the http object without creating new connections 
+    
+    # once you're done with the connection
+    http.shutdown
 
     # if you are done making http requests, or won't make requests for several
     # minutes
