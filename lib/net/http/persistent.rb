@@ -796,6 +796,9 @@ class Net::HTTP::Persistent
     @no_proxy.clear
 
     if @proxy_uri then
+      @proxy_uri.user = unescape @proxy_uri.user
+      @proxy_uri.password = unescape @proxy_uri.password
+
       @proxy_args = [
         @proxy_uri.host,
         @proxy_uri.port,
