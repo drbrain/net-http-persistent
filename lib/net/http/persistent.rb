@@ -721,9 +721,8 @@ class Net::HTTP::Persistent
   # Is +req+ idempotent according to RFC 2616?
 
   def idempotent? req
-    case req
-    when Net::HTTP::Delete, Net::HTTP::Get, Net::HTTP::Head,
-         Net::HTTP::Options, Net::HTTP::Put, Net::HTTP::Trace then
+    case req.method
+    when 'DELETE', 'GET', 'HEAD', 'OPTIONS', 'PUT', 'TRACE' then
       true
     end
   end
@@ -911,7 +910,7 @@ class Net::HTTP::Persistent
   # If a block is passed #request behaves like Net::HTTP#request (the body of
   # the response will not have been read).
   #
-  # +req+ must be a Net::HTTPRequest subclass (see Net::HTTP for a list).
+  # +req+ must be a Net::HTTPGenericRequest subclass (see Net::HTTP for a list).
   #
   # If there is an error and the request is idempotent according to RFC 2616
   # it will be retried automatically.

@@ -728,7 +728,16 @@ class TestNetHttpPersistent < Minitest::Test
     assert @http.idempotent? Net::HTTP::Put.new '/'
     assert @http.idempotent? Net::HTTP::Trace.new '/'
 
+    assert @http.idempotent? Net::HTTPGenericRequest.new('DELETE', false, true, '/')
+    assert @http.idempotent? Net::HTTPGenericRequest.new('GET', false, true, '/')
+    assert @http.idempotent? Net::HTTPGenericRequest.new('HEAD', false, false, '/')
+    assert @http.idempotent? Net::HTTPGenericRequest.new('OPTIONS', false, false, '/')
+    assert @http.idempotent? Net::HTTPGenericRequest.new('PUT', true, true, '/')
+    assert @http.idempotent? Net::HTTPGenericRequest.new('TRACE', false, true, '/')
+
     refute @http.idempotent? Net::HTTP::Post.new '/'
+
+    refute @http.idempotent? Net::HTTPGenericRequest.new('POST', true, true, '/')
   end
 
   def test_normalize_uri
