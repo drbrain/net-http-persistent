@@ -202,7 +202,11 @@ class Net::HTTP::Persistent
   ##
   # The default connection pool size is 1/4 the allowed open files.
 
-  DEFAULT_POOL_SIZE = Process.getrlimit(Process::RLIMIT_NOFILE).first / 4
+  if Gem.win_platform? then 
+    DEFAULT_POOL_SIZE = 256
+  else
+    DEFAULT_POOL_SIZE = Process.getrlimit(Process::RLIMIT_NOFILE).first / 4
+  end
 
   ##
   # The version of Net::HTTP::Persistent you are using
