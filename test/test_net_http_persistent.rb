@@ -120,7 +120,7 @@ class TestNetHttpPersistent < Minitest::Test
   def basic_connection
     raise "#{@uri} is not HTTP" unless @uri.scheme.downcase == 'http'
 
-    net_http_args = [@uri.host, @uri.port]
+    net_http_args = [@uri.hostname, @uri.port]
 
     connection = Net::HTTP::Persistent::Connection.allocate
     connection.ssl_generation = @http.ssl_generation
@@ -152,7 +152,7 @@ class TestNetHttpPersistent < Minitest::Test
   def ssl_connection
     raise "#{@uri} is not HTTPS" unless @uri.scheme.downcase == 'https'
 
-    net_http_args = [@uri.host, @uri.port]
+    net_http_args = [@uri.hostname, @uri.port]
 
     connection = Net::HTTP::Persistent::Connection.allocate
     connection.ssl_generation = @http.ssl_generation
