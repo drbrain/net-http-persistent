@@ -440,9 +440,25 @@ class Net::HTTP::Persistent
   # SSL version to use.
   #
   # By default, the version will be negotiated automatically between client
-  # and server.  Ruby 1.9 and newer only.
+  # and server.  Ruby 1.9 and newer only. Deprecated since Ruby 2.5.
 
   attr_reader :ssl_version
+
+  ##
+  # Minimum SSL version to use, e.g. :TLS1_1
+  #
+  # By default, the version will be negotiated automatically between client
+  # and server.  Ruby 2.5 and newer only.
+
+  attr_reader :min_version
+
+  ##
+  # Maximum SSL version to use, e.g. :TLS1_2
+  #
+  # By default, the version will be negotiated automatically between client
+  # and server.  Ruby 2.5 and newer only.
+
+  attr_reader :max_version
 
   ##
   # Where this instance's last-use times live in the thread local variables
@@ -533,6 +549,8 @@ class Net::HTTP::Persistent
     @private_key        = nil
     @ssl_timeout        = nil
     @ssl_version        = nil
+    @min_version        = nil
+    @max_version        = nil
     @verify_callback    = nil
     @verify_depth       = nil
     @verify_mode        = nil
@@ -1044,6 +1062,8 @@ class Net::HTTP::Persistent
     connection.ciphers     = @ciphers     if @ciphers
     connection.ssl_timeout = @ssl_timeout if @ssl_timeout
     connection.ssl_version = @ssl_version if @ssl_version
+    connection.min_version = @min_version if @min_version
+    connection.max_version = @max_version if @max_version
 
     connection.verify_depth = @verify_depth
     connection.verify_mode  = @verify_mode
@@ -1111,6 +1131,24 @@ application:
 
   def ssl_version= ssl_version
     @ssl_version = ssl_version
+
+    reconnect_ssl
+  end
+
+  ##
+  # Minimum SSL version to use
+
+  def min_version= min_version
+    @min_version = min_version
+
+    reconnect_ssl
+  end
+
+  ##
+  # maximum SSL version to use
+
+  def max_version= max_version
+    @max_version = max_version
 
     reconnect_ssl
   end
