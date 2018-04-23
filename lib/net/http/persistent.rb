@@ -633,11 +633,8 @@ class Net::HTTP::Persistent
     port    = http.proxy_port    || http.port
 
     raise Error, "connection refused: #{address}:#{port}"
-  rescue Errno::EHOSTDOWN
-    address = http.proxy_address || http.address
-    port    = http.proxy_port    || http.port
-
-    raise Error, "host down: #{address}:#{port}"
+  rescue Errno::EHOSTDOWN => e
+    raise Error, e.message
   ensure
     @pool.checkin net_http_args
   end
