@@ -786,7 +786,7 @@ class TestNetHttpPersistent < Minitest::Test
   def test_proxy_equals_nil
     @http.proxy = nil
 
-    assert_equal nil, @http.proxy_uri
+    assert_nil @http.proxy_uri
 
     assert_equal 1, @http.generation, 'generation'
     assert_equal 1, @http.ssl_generation, 'ssl_generation'
@@ -1094,7 +1094,7 @@ class TestNetHttpPersistent < Minitest::Test
     assert_kind_of Net::HTTP::Get, req
     assert_equal '/path',      req.path
     assert_equal 'close',      req['connection']
-    assert_equal nil,          req['keep-alive']
+    assert_nil req['keep-alive']
 
     assert c.http.finished?
   end
