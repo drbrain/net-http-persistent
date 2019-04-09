@@ -77,8 +77,8 @@ class TestNetHttpPersistent < Minitest::Test
   class BasicConnection
     attr_accessor :started, :finished, :address, :port, :use_ssl,
                   :read_timeout, :open_timeout, :keep_alive_timeout
-    attr_accessor :ciphers, :ssl_timeout, :ssl_version,
-                  :verify_depth, :verify_mode, :cert_store,
+    attr_accessor :ciphers, :ssl_timeout, :ssl_version, :min_version,
+                  :max_version, :verify_depth, :verify_mode, :cert_store,
                   :ca_file, :ca_path, :cert, :key
     attr_reader :req, :debug_output
     def initialize
@@ -1524,6 +1524,20 @@ class TestNetHttpPersistent < Minitest::Test
     @http.ssl_version = :ssl_version
 
     assert_equal :ssl_version, @http.ssl_version
+    assert_equal 1, @http.ssl_generation
+  end
+
+  def test_min_version_equals
+    @http.min_version = :min_version
+
+    assert_equal :min_version, @http.min_version
+    assert_equal 1, @http.ssl_generation
+  end
+
+  def test_max_version_equals
+    @http.max_version = :max_version
+
+    assert_equal :max_version, @http.max_version
     assert_equal 1, @http.ssl_generation
   end
 
