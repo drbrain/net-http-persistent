@@ -1048,9 +1048,7 @@ class Net::HTTP::Persistent
   # #shutdown when you are completely done making requests!
 
   def shutdown
-    @pool.available.shutdown do |http|
-      http.finish
-    end
+    @pool.shutdown { |http| http.finish }
   end
 
   ##

@@ -7,11 +7,11 @@ class Net::HTTP::Persistent::Pool < ConnectionPool # :nodoc:
     super
 
     @available = Net::HTTP::Persistent::TimedStackMulti.new(@size, &block)
-    @key = :"current-#{@available.object_id}"
+    @key = "current-#{@available.object_id}"
   end
 
   def checkin net_http_args
-    stack = Thread.current[@key][net_http_args]
+    stack = Thread.current[@key][net_http_args] ||= []
 
     raise ConnectionPool::Error, 'no connections are checked out' if
       stack.empty?
@@ -26,8 +26,8 @@ class Net::HTTP::Persistent::Pool < ConnectionPool # :nodoc:
   end
 
   def checkout net_http_args
-    stacks = Thread.current[@key] ||= Hash.new { |h, k| h[k] = [] }
-    stack  = stacks[net_http_args]
+    stacks = Thread.current[@key] ||= {}
+    stack  = stacks[net_http_args] ||= []
 
     if stack.empty? then
       conn = @available.pop connection_args: net_http_args
@@ -40,6 +40,10 @@ class Net::HTTP::Persistent::Pool < ConnectionPool # :nodoc:
     conn
   end
 
+  def shutdown
+    Thread.current[@key] = nil
+    super
+  end
 end
 
 require 'net/http/persistent/timed_stack_multi'
