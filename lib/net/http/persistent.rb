@@ -33,7 +33,7 @@ autoload :OpenSSL, 'openssl'
 #
 #   uri = URI 'http://example.com/awesome/web/service'
 #
-#   http = Net::HTTP::Persistent.new 'my_app_name'
+#   http = Net::HTTP::Persistent.new name: 'my_app_name'
 #
 #   # perform a GET
 #   response = http.request uri
@@ -153,7 +153,7 @@ autoload :OpenSSL, 'openssl'
 #   uri = URI 'http://example.com/awesome/web/service'
 #   post_uri = uri + 'create'
 #
-#   http = Net::HTTP::Persistent.new 'my_app_name'
+#   http = Net::HTTP::Persistent.new name: 'my_app_name'
 #
 #   post = Net::HTTP::Post.new post_uri.path
 #   # ... fill in POST request
