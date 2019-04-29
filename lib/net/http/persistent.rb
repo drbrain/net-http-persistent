@@ -407,6 +407,11 @@ class Net::HTTP::Persistent
   attr_accessor :read_timeout
 
   ##
+  # Seconds to wait until writing one block.  See Net::HTTP#write_timeout
+
+  attr_accessor :write_timeout
+
+  ##
   # By default SSL sessions are reused to avoid extra SSL handshakes.  Set
   # this to false if you have problems communicating with an HTTPS server
   # like:
@@ -530,6 +535,7 @@ class Net::HTTP::Persistent
     @keep_alive       = 30
     @open_timeout     = nil
     @read_timeout     = nil
+    @write_timeout    = nil
     @idle_timeout     = 5
     @max_requests     = nil
     @socket_options   = []
@@ -643,6 +649,7 @@ class Net::HTTP::Persistent
     end
 
     http.read_timeout = @read_timeout if @read_timeout
+    http.write_timeout = @write_timeout if @write_timeout && http.respond_to?(:write_timeout=)
     http.keep_alive_timeout = @idle_timeout if @idle_timeout
 
     return yield connection
