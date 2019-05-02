@@ -16,6 +16,7 @@ rvm:
 - 2.5
 - 2.6
 script: rake travis
+install: "" # avoid running default bundler install
 
 matrix:
   include:

@@ -1,8 +1,8 @@
 # -*- ruby -*-
 
-require 'rubygems'
 require 'hoe'
 
+Hoe.plugin :bundler
 Hoe.plugin :git
 Hoe.plugin :minitest
 Hoe.plugin :travis
@@ -22,6 +22,8 @@ Hoe.spec 'net-http-persistent' do
 
   dependency 'connection_pool',   '~> 2.2'
   dependency 'minitest',          '~> 5.2', :development
+  dependency 'hoe-bundler',       '~> 1.5', :development
+  dependency 'hoe-travis',        ['~> 1.4', '>= 1.4.1'], :development
   dependency 'net-http-pipeline', '~> 1.0' if
     ENV['TRAVIS_MATRIX'] == 'pipeline'
 end

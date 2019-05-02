@@ -4,3 +4,4 @@
 /doc
 /pkg
 .idea
+/Gemfile.lock
