@@ -223,26 +223,6 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal 1, @http.ssl_generation
   end
 
-  def test_can_retry_eh_change_requests
-    post = Net::HTTP::Post.new '/'
-
-    refute @http.can_retry? post
-
-    @http.retry_change_requests = true
-
-    assert @http.can_retry? post
-  end
-
-  def test_can_retry_eh_idempotent
-    head = Net::HTTP::Head.new '/'
-
-    refute @http.can_retry? head
-
-    post = Net::HTTP::Post.new '/'
-
-    refute @http.can_retry? post
-  end
-
   def test_cert_store_equals
     @http.cert_store = :cert_store
 
@@ -636,16 +616,6 @@ class TestNetHttpPersistent < Minitest::Test
     end
   end
 
-  def test_error_message
-    c = basic_connection
-    c.last_use = Time.now - 1
-    c.requests = 5
-
-    message = @http.error_message c
-    assert_match %r%after 4 requests on #{c.http.object_id}%, message
-    assert_match %r%, last used [\d.]+ seconds ago%, message
-  end
-
   def test_escape
     assert_nil @http.escape nil
 
@@ -754,26 +724,6 @@ class TestNetHttpPersistent < Minitest::Test
     @http.request @uri_v6
 
     assert_equal '1.1', @http.http_version(@uri_v6)
-  end
-
-  def test_idempotent_eh
-    assert @http.idempotent? Net::HTTP::Delete.new '/'
-    assert @http.idempotent? Net::HTTP::Get.new '/'
-    assert @http.idempotent? Net::HTTP::Head.new '/'
-    assert @http.idempotent? Net::HTTP::Options.new '/'
-    assert @http.idempotent? Net::HTTP::Put.new '/'
-    assert @http.idempotent? Net::HTTP::Trace.new '/'
-
-    assert @http.idempotent? Net::HTTPGenericRequest.new('DELETE', false, true, '/')
-    assert @http.idempotent? Net::HTTPGenericRequest.new('GET', false, true, '/')
-    assert @http.idempotent? Net::HTTPGenericRequest.new('HEAD', false, false, '/')
-    assert @http.idempotent? Net::HTTPGenericRequest.new('OPTIONS', false, false, '/')
-    assert @http.idempotent? Net::HTTPGenericRequest.new('PUT', true, true, '/')
-    assert @http.idempotent? Net::HTTPGenericRequest.new('TRACE', false, true, '/')
-
-    refute @http.idempotent? Net::HTTP::Post.new '/'
-
-    refute @http.idempotent? Net::HTTPGenericRequest.new('POST', true, true, '/')
   end
 
   def test_normalize_uri
@@ -998,7 +948,7 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal Net::HTTP::Persistent::EPOCH, used2.last_use
   end
 
-  def test_request
+  def test_requestx
     @http.override_headers['user-agent'] = 'test ua'
     @http.headers['accept'] = 'text/*'
     c = connection
@@ -1020,62 +970,6 @@ class TestNetHttpPersistent < Minitest::Test
     assert_in_delta Time.now, c.last_use
 
     assert_equal 1, c.requests
-  end
-
-  def test_request_ETIMEDOUT
-    c = basic_connection
-    def (c.http).request(*a) raise Errno::ETIMEDOUT, "timed out" end
-
-    e = assert_raises Net::HTTP::Persistent::Error do
-      @http.request @uri
-    end
-
-    assert_equal 0, c.requests
-    assert_match %r%too many connection resets%, e.message
-  end
-
-  def test_request_bad_response
-    c = basic_connection
-    def (c.http).request(*a) raise Net::HTTPBadResponse end
-
-    e = assert_raises Net::HTTP::Persistent::Error do
-      @http.request @uri
-    end
-
-    assert_equal 0, c.requests
-    assert_match %r%too many bad responses%, e.message
-  end
-
-  def test_request_bad_response_retry
-    c = basic_connection
-    def (c.http).request(*a)
-      raise Net::HTTPBadResponse
-    end
-
-    assert_raises Net::HTTP::Persistent::Error do
-      @http.request @uri
-    end
-
-    assert c.http.finished?
-  end
-
-  def test_request_bad_response_unsafe
-    c = basic_connection
-    def (c.http).request(*a)
-      if instance_variable_defined? :@request then
-        raise 'POST must not be retried'
-      else
-        @request = true
-        raise Net::HTTPBadResponse
-      end
-    end
-
-    e = assert_raises Net::HTTP::Persistent::Error do
-      @http.request @uri, Net::HTTP::Post.new(@uri.path)
-    end
-
-    assert_equal 0, c.requests
-    assert_match %r%too many bad responses%, e.message
   end
 
   def test_request_block
@@ -1203,12 +1097,12 @@ class TestNetHttpPersistent < Minitest::Test
     c = basic_connection
     def (c.http).request(*a) raise Errno::EINVAL, "write" end
 
-    e = assert_raises Net::HTTP::Persistent::Error do
+    e = assert_raises Errno::EINVAL do
       @http.request @uri
     end
 
     assert_equal 0, c.requests
-    assert_match %r%too many connection resets%, e.message
+    assert_match %r%Invalid argument - write%, e.message
   end
 
   def test_request_post
@@ -1220,69 +1114,6 @@ class TestNetHttpPersistent < Minitest::Test
     req = c.http.req
 
     assert_same post, req
-  end
-
-  def test_request_reset
-    c = basic_connection
-    def (c.http).request(*a) raise Errno::ECONNRESET end
-
-    e = assert_raises Net::HTTP::Persistent::Error do
-      @http.request @uri
-    end
-
-    assert_equal 0, c.requests
-    assert_match %r%too many connection resets%, e.message
-  end
-
-  def test_request_reset_retry
-    c = basic_connection
-    c.last_use = Time.now
-
-    def (c.http).request(*a)
-      raise Errno::ECONNRESET
-    end
-
-    assert_raises Net::HTTP::Persistent::Error do
-      @http.request @uri
-    end
-
-    refute (c.http).reset?
-    assert (c.http).finished?
-  end
-
-  def test_request_reset_unsafe
-    c = basic_connection
-    def (c.http).request(*a)
-      if instance_variable_defined? :@request then
-        raise 'POST must not be retried'
-      else
-        @request = true
-        raise Errno::ECONNRESET
-      end
-    end
-
-    e = assert_raises Net::HTTP::Persistent::Error do
-      @http.request @uri, Net::HTTP::Post.new(@uri.path)
-    end
-
-    assert_equal 0, c.requests
-    assert_match %r%too many connection resets%, e.message
-  end
-
-  def test_request_ssl_error
-    skip 'OpenSSL is missing' unless HAVE_OPENSSL
-
-    uri = URI.parse 'https://example.com/path'
-    @http.connection_for uri do |c|
-      def (c.http).request(*)
-        raise OpenSSL::SSL::SSLError, "SSL3_WRITE_PENDING:bad write retry"
-      end
-
-      e = assert_raises Net::HTTP::Persistent::Error do
-        @http.request uri
-      end
-      assert_match %r%bad write retry%, e.message
-    end
   end
 
   def test_request_setup
@@ -1326,30 +1157,6 @@ class TestNetHttpPersistent < Minitest::Test
 
     assert_kind_of Net::HTTP::Get, req
     assert_equal '/path?a=b',  req.path
-  end
-
-  def test_request_failed
-    c = basic_connection
-    c.requests = 1
-    c.last_use = Time.now
-
-    original = nil
-
-    begin
-      raise 'original'
-    rescue => original
-    end
-
-    req = Net::HTTP::Get.new '/'
-
-    e = assert_raises Net::HTTP::Persistent::Error do
-      @http.request_failed original, req, c
-    end
-
-    assert_match "too many connection resets (due to original - RuntimeError)",
-                 e.message
-
-    assert_equal original.backtrace, e.backtrace
   end
 
   def test_reset
@@ -1404,23 +1211,6 @@ class TestNetHttpPersistent < Minitest::Test
 
     assert_match %r%connection refused%, e.message
     assert_match __FILE__, e.backtrace.first
-  end
-
-  def test_retry_change_requests_equals
-    get  = Net::HTTP::Get.new('/')
-    post = Net::HTTP::Post.new('/')
-
-    refute @http.retry_change_requests
-
-    refute @http.can_retry?(get)
-    refute @http.can_retry?(post)
-
-    @http.retry_change_requests = true
-
-    assert @http.retry_change_requests
-
-    refute @http.can_retry?(get)
-    assert @http.can_retry?(post)
   end
 
   def test_shutdown
