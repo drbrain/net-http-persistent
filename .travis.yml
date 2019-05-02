@@ -1,15 +1,15 @@
 ---
-after_script:
-- rake travis:after -t
-before_script:
-- gem install hoe-travis --no-rdoc --no-ri
-- rake travis:before -t
+after_script: bundle exec rake travis:after --trace
+before_script: bundle exec rake travis:before --trace
 language: ruby
 notifications:
   email:
   - drbrain@segment7.net
 rvm:
-- 2.1.10
-- 2.2.5
-- 2.3.1
-script: rake travis
+- 2.1
+- 2.2
+- 2.3
+- 2.4
+- 2.5
+- 2.6
+script: bundle exec rake travis
