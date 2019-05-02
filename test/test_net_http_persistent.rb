@@ -751,7 +751,7 @@ class TestNetHttpPersistent < Minitest::Test
     skip 'net-http-pipeline not installed' unless defined?(Net::HTTP::Pipeline)
 
     cached = basic_connection
-    cached.start
+    cached.http.start
 
     requests = [
       Net::HTTP::Get.new((@uri + '1').request_uri),
