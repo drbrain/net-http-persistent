@@ -1,3 +1,9 @@
+=== Next
+
+Breaking changes:
+
+* Requests are no longer retried by net-http-persistent.
+
 === 3.0
 
 Breaking changes:
