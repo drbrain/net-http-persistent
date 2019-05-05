@@ -1,8 +1,8 @@
 source "https://rubygems.org"
 
+gemspec
+
 gem "rake"
-gem "hoe"
-gem "hoe-travis"
+gem "bump"
 gem "minitest"
-gem "connection_pool"
 gem "net-http-pipeline"

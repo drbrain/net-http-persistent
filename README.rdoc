@@ -1,11 +1,10 @@
 = net-http-persistent
 
-* http://docs.seattlerb.org/net-http-persistent
 * https://github.com/drbrain/net-http-persistent
 
 == DESCRIPTION:
 
-Manages persistent connections using Net::HTTP plus a speed fix for Ruby 1.8.
+Manages persistent connections using Net::HTTP.
 It's thread-safe too!
 
 Using persistent HTTP connections can dramatically increase the speed of HTTP.
@@ -21,7 +20,6 @@ and retry according to RFC 2616.
 * Supports SSL
 * Thread-safe
 * Pure ruby
-* Timeout-less speed boost for Ruby 1.8 (by Aaron Patterson)
 
 == SYNOPSIS
 
@@ -54,7 +52,7 @@ including SSL connection verification, header handling and tunable options.
 
 == INSTALL:
 
-  gem install net-http-persistent
+    gem install net-http-persistent
 
 == LICENSE:
 

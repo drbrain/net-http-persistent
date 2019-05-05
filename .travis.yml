@@ -1,6 +1,4 @@
 ---
-after_script: bundle exec rake travis:after --trace
-before_script: bundle exec rake travis:before --trace
 language: ruby
 notifications:
   email:
@@ -12,4 +10,3 @@ rvm:
 - 2.4
 - 2.5
 - 2.6
-script: bundle exec rake travis
