@@ -16,3 +16,8 @@ rvm:
 - 2.5
 - 2.6
 script: rake travis
+
+matrix:
+  include:
+  - rvm: "2.6"
+    env: TRAVIS_MATRIX=pipeline

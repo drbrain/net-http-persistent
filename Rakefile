@@ -20,8 +20,10 @@ Hoe.spec 'net-http-persistent' do
   rdoc_locations <<
     'docs.seattlerb.org:/data/www/docs.seattlerb.org/net-http-persistent/'
 
-  dependency 'connection_pool', '~> 2.2'
-  dependency 'minitest',        '~> 5.2', :development
+  dependency 'connection_pool',   '~> 2.2'
+  dependency 'minitest',          '~> 5.2', :development
+  dependency 'net-http-pipeline', '~> 1.0' if
+    ENV['TRAVIS_MATRIX'] == 'pipeline'
 end
 
 # vim: syntax=Ruby
