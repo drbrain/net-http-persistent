@@ -46,5 +46,5 @@ class Net::HTTP::Persistent::Pool < ConnectionPool # :nodoc:
   end
 end
 
-require 'net/http/persistent/timed_stack_multi'
+require_relative 'timed_stack_multi'
 

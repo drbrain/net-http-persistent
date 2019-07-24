@@ -1195,6 +1195,6 @@ application:
 
 end
 
-require 'net/http/persistent/connection'
-require 'net/http/persistent/pool'
+require_relative 'persistent/connection'
+require_relative 'persistent/pool'
 
