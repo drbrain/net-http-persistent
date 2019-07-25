@@ -546,6 +546,21 @@ class TestNetHttpPersistent < Minitest::Test
     assert stored
   end
 
+  def test_connection_for_no_proxy_from_env
+    ENV['http_proxy'] = 'proxy.example'
+    ENV['no_proxy'] = 'localhost, example.com,'
+    ENV['proxy_user'] = 'johndoe'
+    ENV['proxy_password'] = 'muffins'
+
+    http = Net::HTTP::Persistent.new proxy: :ENV
+
+    http.connection_for @uri do |c|
+      assert c.http.started?
+      refute c.http.proxy?
+      refute c.http.proxy_from_env?
+    end
+  end
+
   def test_connection_for_refused
     Net::HTTP.use_connect :refused_connect
 
