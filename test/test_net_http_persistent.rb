@@ -77,8 +77,8 @@ class TestNetHttpPersistent < Minitest::Test
   class BasicConnection
     attr_accessor :started, :finished, :address, :port, :use_ssl,
                   :read_timeout, :open_timeout, :keep_alive_timeout
-    attr_accessor :ciphers, :ssl_timeout, :ssl_version,
-                  :verify_depth, :verify_mode, :cert_store,
+    attr_accessor :ciphers, :ssl_timeout, :ssl_version, :min_version,
+                  :max_version, :verify_depth, :verify_mode, :cert_store,
                   :ca_file, :ca_path, :cert, :key
     attr_reader :req, :debug_output
     def initialize
@@ -120,7 +120,7 @@ class TestNetHttpPersistent < Minitest::Test
   def basic_connection
     raise "#{@uri} is not HTTP" unless @uri.scheme.downcase == 'http'
 
-    net_http_args = [@uri.host, @uri.port]
+    net_http_args = [@uri.host, @uri.port, nil, nil, nil, nil]
 
     connection = Net::HTTP::Persistent::Connection.allocate
     connection.ssl_generation = @http.ssl_generation
@@ -152,7 +152,7 @@ class TestNetHttpPersistent < Minitest::Test
   def ssl_connection
     raise "#{@uri} is not HTTPS" unless @uri.scheme.downcase == 'https'
 
-    net_http_args = [@uri.host, @uri.port]
+    net_http_args = [@uri.host, @uri.port, nil, nil, nil, nil]
 
     connection = Net::HTTP::Persistent::Connection.allocate
     connection.ssl_generation = @http.ssl_generation
@@ -279,7 +279,7 @@ class TestNetHttpPersistent < Minitest::Test
       c
     end
 
-    stored = @http.pool.checkout ['example.com', 80]
+    stored = @http.pool.checkout ['example.com', 80, nil, nil, nil, nil]
 
     assert_same used, stored
   end
@@ -728,7 +728,16 @@ class TestNetHttpPersistent < Minitest::Test
     assert @http.idempotent? Net::HTTP::Put.new '/'
     assert @http.idempotent? Net::HTTP::Trace.new '/'
 
+    assert @http.idempotent? Net::HTTPGenericRequest.new('DELETE', false, true, '/')
+    assert @http.idempotent? Net::HTTPGenericRequest.new('GET', false, true, '/')
+    assert @http.idempotent? Net::HTTPGenericRequest.new('HEAD', false, false, '/')
+    assert @http.idempotent? Net::HTTPGenericRequest.new('OPTIONS', false, false, '/')
+    assert @http.idempotent? Net::HTTPGenericRequest.new('PUT', true, true, '/')
+    assert @http.idempotent? Net::HTTPGenericRequest.new('TRACE', false, true, '/')
+
     refute @http.idempotent? Net::HTTP::Post.new '/'
+
+    refute @http.idempotent? Net::HTTPGenericRequest.new('POST', true, true, '/')
   end
 
   def test_normalize_uri
@@ -751,7 +760,7 @@ class TestNetHttpPersistent < Minitest::Test
     skip 'net-http-pipeline not installed' unless defined?(Net::HTTP::Pipeline)
 
     cached = basic_connection
-    cached.start
+    cached.http.start
 
     requests = [
       Net::HTTP::Get.new((@uri + '1').request_uri),
@@ -786,7 +795,7 @@ class TestNetHttpPersistent < Minitest::Test
   def test_proxy_equals_nil
     @http.proxy = nil
 
-    assert_equal nil, @http.proxy_uri
+    assert_nil @http.proxy_uri
 
     assert_equal 1, @http.generation, 'generation'
     assert_equal 1, @http.ssl_generation, 'ssl_generation'
@@ -1094,7 +1103,7 @@ class TestNetHttpPersistent < Minitest::Test
     assert_kind_of Net::HTTP::Get, req
     assert_equal '/path',      req.path
     assert_equal 'close',      req['connection']
-    assert_equal nil,          req['keep-alive']
+    assert_nil req['keep-alive']
 
     assert c.http.finished?
   end
@@ -1524,6 +1533,20 @@ class TestNetHttpPersistent < Minitest::Test
     @http.ssl_version = :ssl_version
 
     assert_equal :ssl_version, @http.ssl_version
+    assert_equal 1, @http.ssl_generation
+  end
+
+  def test_min_version_equals
+    @http.min_version = :min_version
+
+    assert_equal :min_version, @http.min_version
+    assert_equal 1, @http.ssl_generation
+  end
+
+  def test_max_version_equals
+    @http.max_version = :max_version
+
+    assert_equal :max_version, @http.max_version
     assert_equal 1, @http.ssl_generation
   end
 
