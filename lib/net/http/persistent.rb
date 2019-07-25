@@ -211,7 +211,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent you are using
 
-  VERSION = '3.0.0'
+  VERSION = '3.1.0'
 
   ##
   # Exceptions rescued for automatic retry on ruby 2.0.0.  This overlaps with

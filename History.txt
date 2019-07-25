@@ -1,3 +1,40 @@
+=== 3.1.0 2019-07-24
+
+New features:
+* Support ruby 2.6 Net::HTTP#write_timeout=.  Pull request #99 by Víctor
+  Roldán Betancort.
+* Support setting TLS min/max version.  Pull request #94 by Bart.
+
+Bug fixes:
+* Reduce potential for memory leak through Hash default proc bindings.  Pull
+  request #64 by Dominic Metzger.
+* Test proxy auto detection from no_proxy in ENV.  Pull request #60 by
+  HINOHARA Hiroshi.
+* Add missing timestamp for 3.0 release.  Pull request #78 by Joe Van Dyk.
+* Support IPv6 URLs in proxy checks.  Pull request #82 by Nicolás Sanguinetti.
+* Use Net::HTTPGenericRequest#method to check idempotence for improved
+  compatibility.  Pull request #83 by Fotos Georgiadis.
+* Run net-http-pipeline tests in travis.  Pull request #86 by T.J. Schuck.
+* Correct +no_proxy+ support to override Net::HTTP proxy fallback.  Pull
+  request #88 by Jared Kauppila.
+* Mitigate memory leak when combined with faraday.  Pull request #105 by Yohei
+  Kitamura.
+* Set default connection pool size for Windows.  Pull request #90 by Jared
+  Kauppila.
+* Fix missing +name:+ argument in documentation.  Pull requests #85 by T.J.
+  Schuck, #84 by James White.
+* Fix memory leak from connection pooling.  Pull request #97 by Aaron
+  Patterson.
+* Update tests for minitest assert_equal deprecation.  Pull request #92 by
+  Olle Jonsson.
+* Fix typo in Net::HTTP::Persistent#pipeline.  Pull request #91 by Kazuma
+  Furuhashi.
+
+Other:
+* Added bundler hoe plugin.  Pull request #103 by Michael Grosser.
+* Updated ruby versions in Travis CI.  Pull request #93 by Olle Jonsson.  Pull
+  request #103 by Michael Grosser.
+
 === 3.0 2016-10-05
 
 Breaking changes:
