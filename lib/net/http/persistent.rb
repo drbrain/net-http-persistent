@@ -33,7 +33,7 @@ autoload :OpenSSL, 'openssl'
 #
 #   uri = URI 'http://example.com/awesome/web/service'
 #
-#   http = Net::HTTP::Persistent.new 'my_app_name'
+#   http = Net::HTTP::Persistent.new name: 'my_app_name'
 #
 #   # perform a GET
 #   response = http.request uri
@@ -153,7 +153,7 @@ autoload :OpenSSL, 'openssl'
 #   uri = URI 'http://example.com/awesome/web/service'
 #   post_uri = uri + 'create'
 #
-#   http = Net::HTTP::Persistent.new 'my_app_name'
+#   http = Net::HTTP::Persistent.new name: 'my_app_name'
 #
 #   post = Net::HTTP::Post.new post_uri.path
 #   # ... fill in POST request
@@ -202,7 +202,11 @@ class Net::HTTP::Persistent
   ##
   # The default connection pool size is 1/4 the allowed open files.
 
-  DEFAULT_POOL_SIZE = Process.getrlimit(Process::RLIMIT_NOFILE).first / 4
+  if Gem.win_platform? then 
+    DEFAULT_POOL_SIZE = 256
+  else
+    DEFAULT_POOL_SIZE = Process.getrlimit(Process::RLIMIT_NOFILE).first / 4
+  end
 
   ##
   # The version of Net::HTTP::Persistent you are using
@@ -407,6 +411,11 @@ class Net::HTTP::Persistent
   attr_accessor :read_timeout
 
   ##
+  # Seconds to wait until writing one block.  See Net::HTTP#write_timeout
+
+  attr_accessor :write_timeout
+
+  ##
   # By default SSL sessions are reused to avoid extra SSL handshakes.  Set
   # this to false if you have problems communicating with an HTTPS server
   # like:
@@ -440,9 +449,25 @@ class Net::HTTP::Persistent
   # SSL version to use.
   #
   # By default, the version will be negotiated automatically between client
-  # and server.  Ruby 1.9 and newer only.
+  # and server.  Ruby 1.9 and newer only. Deprecated since Ruby 2.5.
 
   attr_reader :ssl_version
+
+  ##
+  # Minimum SSL version to use, e.g. :TLS1_1
+  #
+  # By default, the version will be negotiated automatically between client
+  # and server.  Ruby 2.5 and newer only.
+
+  attr_reader :min_version
+
+  ##
+  # Maximum SSL version to use, e.g. :TLS1_2
+  #
+  # By default, the version will be negotiated automatically between client
+  # and server.  Ruby 2.5 and newer only.
+
+  attr_reader :max_version
 
   ##
   # Where this instance's last-use times live in the thread local variables
@@ -514,6 +539,7 @@ class Net::HTTP::Persistent
     @keep_alive       = 30
     @open_timeout     = nil
     @read_timeout     = nil
+    @write_timeout    = nil
     @idle_timeout     = 5
     @max_requests     = nil
     @socket_options   = []
@@ -533,6 +559,8 @@ class Net::HTTP::Persistent
     @private_key        = nil
     @ssl_timeout        = nil
     @ssl_version        = nil
+    @min_version        = nil
+    @max_version        = nil
     @verify_callback    = nil
     @verify_depth       = nil
     @verify_mode        = nil
@@ -607,8 +635,11 @@ class Net::HTTP::Persistent
 
     net_http_args = [uri.host, uri.port]
 
-    net_http_args.concat @proxy_args if
-      @proxy_uri and not proxy_bypass? uri.host, uri.port
+    if @proxy_uri and not proxy_bypass? uri.host, uri.port then
+      net_http_args.concat @proxy_args
+    else
+      net_http_args.concat [nil, nil, nil, nil]
+    end
 
     connection = @pool.checkout net_http_args
 
@@ -625,6 +656,7 @@ class Net::HTTP::Persistent
     end
 
     http.read_timeout = @read_timeout if @read_timeout
+    http.write_timeout = @write_timeout if @write_timeout && http.respond_to?(:write_timeout=)
     http.keep_alive_timeout = @idle_timeout if @idle_timeout
 
     return yield connection
@@ -744,7 +776,7 @@ class Net::HTTP::Persistent
 
   ##
   # Pipelines +requests+ to the HTTP server at +uri+ yielding responses if a
-  # block is given.  Returns all responses recieved.
+  # block is given.  Returns all responses received.
   #
   # See
   # Net::HTTP::Pipeline[http://docs.seattlerb.org/net-http-pipeline/Net/HTTP/Pipeline.html]
@@ -1030,9 +1062,7 @@ class Net::HTTP::Persistent
   # #shutdown when you are completely done making requests!
 
   def shutdown
-    @pool.available.shutdown do |http|
-      http.finish
-    end
+    @pool.shutdown { |http| http.finish }
   end
 
   ##
@@ -1044,6 +1074,8 @@ class Net::HTTP::Persistent
     connection.ciphers     = @ciphers     if @ciphers
     connection.ssl_timeout = @ssl_timeout if @ssl_timeout
     connection.ssl_version = @ssl_version if @ssl_version
+    connection.min_version = @min_version if @min_version
+    connection.max_version = @max_version if @max_version
 
     connection.verify_depth = @verify_depth
     connection.verify_mode  = @verify_mode
@@ -1111,6 +1143,24 @@ application:
 
   def ssl_version= ssl_version
     @ssl_version = ssl_version
+
+    reconnect_ssl
+  end
+
+  ##
+  # Minimum SSL version to use
+
+  def min_version= min_version
+    @min_version = min_version
+
+    reconnect_ssl
+  end
+
+  ##
+  # maximum SSL version to use
+
+  def max_version= max_version
+    @max_version = max_version
 
     reconnect_ssl
   end

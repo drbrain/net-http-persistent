@@ -2,14 +2,23 @@
 after_script:
 - rake travis:after -t
 before_script:
-- gem install hoe-travis --no-rdoc --no-ri
+- gem install hoe-travis --no-document
 - rake travis:before -t
 language: ruby
 notifications:
   email:
   - drbrain@segment7.net
 rvm:
-- 2.1.10
-- 2.2.5
-- 2.3.1
+- 2.1
+- 2.2
+- 2.3
+- 2.4
+- 2.5
+- 2.6
 script: rake travis
+install: "" # avoid running default bundler install
+
+matrix:
+  include:
+  - rvm: "2.6"
+    env: TRAVIS_MATRIX=pipeline
