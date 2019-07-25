@@ -395,6 +395,14 @@ class TestNetHttpPersistent < Minitest::Test
     end
   end
 
+  def test_connection_for_ipv6
+    uri = URI.parse 'https://[::1]/'
+
+    @http.connection_for uri do |c|
+      assert_equal '::1', c.http.address
+    end
+  end
+
   def test_connection_for_host_down
     c = basic_connection
     def (c.http).start; raise Errno::EHOSTDOWN end
