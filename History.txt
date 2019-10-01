@@ -23,7 +23,7 @@ Bug fixes:
   Kauppila.
 * Fix missing +name:+ argument in documentation.  Pull requests #85 by T.J.
   Schuck, #84 by James White.
-* Fix memory leak from connection pooling.  Pull request #97 by Aaron
+* Fix memory leak from connection pooling.  Pull request #98 by Aaron
   Patterson.
 * Update tests for minitest assert_equal deprecation.  Pull request #92 by
   Olle Jonsson.
