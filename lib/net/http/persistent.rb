@@ -961,7 +961,18 @@ class Net::HTTP::Persistent
       begin
         connection.requests += 1
 
+        if connection.digest_auth_token
+          req['Authorization']= connection.digest_auth_token
+        end
+
         response = http.request req, &block
+
+        if defined?(Net::HTTP::DigestAuth) and response.code == '401' and response['www-authenticate'] and response['www-authenticate'].start_with?('Digest')
+          digest_auth = Net::HTTP::DigestAuth.new
+          connection.digest_auth_token= digest_auth.auth_header(uri, response['www-authenticate'], req.class::METHOD)
+          req['Authorization']= connection.digest_auth_token
+          response = http.request req, &block
+        end
 
         if req.connection_close? or
            (response.http_version <= '1.0' and

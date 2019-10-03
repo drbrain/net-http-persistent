@@ -12,6 +12,8 @@ class Net::HTTP::Persistent::Connection # :nodoc:
 
   attr_accessor :ssl_generation
 
+  attr_accessor :digest_auth_token
+
   def initialize http_class, http_args, ssl_generation
     @http           = http_class.new(*http_args)
     @ssl_generation = ssl_generation
