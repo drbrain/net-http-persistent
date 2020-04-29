@@ -1030,7 +1030,7 @@ class Net::HTTP::Persistent
   # Returns the request.
 
   def request_setup req_or_uri # :nodoc:
-    req = if URI === req_or_uri then
+    req = if req_or_uri.respond_to? 'request_uri' then
             Net::HTTP::Get.new req_or_uri.request_uri
           else
             req_or_uri
