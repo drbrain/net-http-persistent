@@ -1,3 +1,39 @@
+=== 4.0.0
+
+Breaking changes:
+
+* Dropped support for EoL ruby versions (< 2.4).  Future feature releases may
+  drop support for ruby versions that are at end-of-life or in security-only
+  maintenance mode with any release.  Pull request #113 by David Rodríguez
+
+New features:
+
+* Use require_relative to reduce patch burden for vendored versions.  Pull
+  Request #106 by David Rodríguez
+* URI-ness is determined through #respond_to? to allow compatibility with
+  Addressable::URI.  Pull request #67 by Ryan McKern.
+* Merge pull request #76 from stepnivlk/master
+
+Bug fixes:
+
+* Stop wasting a connection when the keep-alive timeout is less than the idle
+  timeout.  Pull request #115 by Yap Sok Ann.
+* Improved use of URI#hostname for IPv6 connections.  Pull request #76 by
+  Tomas Koutsky.
+* Improved check for Process::RLIMIT_NOFILE support.  Pull request #109 by Vít
+  Ondruch.
+* Fix namespace in comments for escape/unescape wrappers.  Pull request #114
+  by David Rodríguez.
+* Fix History.txt timestamp for 3.0.0 release.  Pull request #107 by Joe Van
+  Dyk.
+* Fix link to PR #98 in 3.1.0 release notes.  Pull request #110 by Justin
+  Reid.
+
+Other:
+
+* Updated Net::HTTP::Persistent#reconnect documentation to indicate that all
+  connections are reset.  Issue #117 by Taisuke Miyazaki.
+
 === 3.1.0 / 2019-07-24
 
 New features:
