@@ -1,4 +1,4 @@
-=== 3.1.0 2019-07-24
+=== 3.1.0 / 2019-07-24
 
 New features:
 * Support ruby 2.6 Net::HTTP#write_timeout=.  Pull request #99 by Víctor
@@ -35,7 +35,7 @@ Other:
 * Updated ruby versions in Travis CI.  Pull request #93 by Olle Jonsson.  Pull
   request #103 by Michael Grosser.
 
-=== 3.0 2016-10-05
+=== 3.0 / 2016-10-05
 
 Breaking changes:
 
