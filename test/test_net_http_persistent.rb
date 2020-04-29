@@ -708,7 +708,7 @@ class TestNetHttpPersistent < Minitest::Test
 
     assert_equal 0, c.requests
     assert_equal Net::HTTP::Persistent::EPOCH, c.last_use
-    assert_equal nil, c.http.instance_variable_get(:@last_communicated)
+    assert_nil c.http.instance_variable_get(:@last_communicated)
   end
 
   def test_finish_io_error
