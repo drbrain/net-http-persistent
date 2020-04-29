@@ -56,7 +56,8 @@ class TestNetHttpPersistent < Minitest::Test
   def setup
     @http = Net::HTTP::Persistent.new
 
-    @uri  = URI.parse 'http://example.com/path'
+    @uri    = URI 'http://example.com/path'
+    @uri_v6 = URI 'http://[2001:db8::1]/path'
 
     ENV.delete 'http_proxy'
     ENV.delete 'HTTP_PROXY'
@@ -120,7 +121,7 @@ class TestNetHttpPersistent < Minitest::Test
   def basic_connection
     raise "#{@uri} is not HTTP" unless @uri.scheme.downcase == 'http'
 
-    net_http_args = [@uri.host, @uri.port, nil, nil, nil, nil]
+    net_http_args = [@uri.hostname, @uri.port, nil, nil, nil, nil]
 
     connection = Net::HTTP::Persistent::Connection.allocate
     connection.ssl_generation = @http.ssl_generation
@@ -132,7 +133,9 @@ class TestNetHttpPersistent < Minitest::Test
     connection
   end
 
-  def connection
+  def connection uri = @uri
+    @uri = uri
+
     connection = basic_connection
     connection.last_use = Time.now
 
@@ -152,7 +155,7 @@ class TestNetHttpPersistent < Minitest::Test
   def ssl_connection
     raise "#{@uri} is not HTTPS" unless @uri.scheme.downcase == 'https'
 
-    net_http_args = [@uri.host, @uri.port, nil, nil, nil, nil]
+    net_http_args = [@uri.hostname, @uri.port, nil, nil, nil, nil]
 
     connection = Net::HTTP::Persistent::Connection.allocate
     connection.ssl_generation = @http.ssl_generation
@@ -396,10 +399,8 @@ class TestNetHttpPersistent < Minitest::Test
   end
 
   def test_connection_for_ipv6
-    uri = URI.parse 'https://[::1]/'
-
-    @http.connection_for uri do |c|
-      assert_equal '::1', c.http.address
+    @http.connection_for @uri_v6 do |c|
+      assert_equal '2001:db8::1', c.http.address
     end
   end
 
@@ -743,6 +744,16 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal '1.1', @http.http_version(@uri)
   end
 
+  def test_http_version_IPv6
+    assert_nil @http.http_version @uri_v6
+
+    connection @uri_v6
+
+    @http.request @uri_v6
+
+    assert_equal '1.1', @http.http_version(@uri_v6)
+  end
+
   def test_idempotent_eh
     assert @http.idempotent? Net::HTTP::Delete.new '/'
     assert @http.idempotent? Net::HTTP::Get.new '/'
@@ -826,6 +837,14 @@ class TestNetHttpPersistent < Minitest::Test
 
   def test_proxy_equals_uri
     proxy_uri = URI.parse 'http://proxy.example'
+
+    @http.proxy = proxy_uri
+
+    assert_equal proxy_uri, @http.proxy_uri
+  end
+
+  def test_proxy_equals_uri_IPv6
+    proxy_uri = @uri_v6
 
     @http.proxy = proxy_uri
 
