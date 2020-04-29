@@ -13,12 +13,12 @@ Hoe.spec 'net-http-persistent' do
   self.readme_file      = 'README.rdoc'
   self.extra_rdoc_files += Dir['*.rdoc']
 
-  self.require_ruby_version '~> 2.1'
+  self.require_ruby_version '~> 2.4'
 
   license 'MIT'
 
   rdoc_locations <<
-    'docs.seattlerb.org:/data/www/docs.seattlerb.org/net-http-persistent/'
+    'docs-push.seattlerb.org:/data/www/docs.seattlerb.org/net-http-persistent/'
 
   dependency 'connection_pool',   '~> 2.2'
   dependency 'minitest',          '~> 5.2', :development

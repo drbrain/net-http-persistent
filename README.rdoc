@@ -1,7 +1,7 @@
 = net-http-persistent
 
-* http://docs.seattlerb.org/net-http-persistent
-* https://github.com/drbrain/net-http-persistent
+home :: https://github.com/drbrain/net-http-persistent
+rdoc :: http://docs.seattlerb.org/net-http-persistent
 
 == DESCRIPTION:
 

@@ -202,7 +202,7 @@ class Net::HTTP::Persistent
   ##
   # The default connection pool size is 1/4 the allowed open files.
 
-  if Gem.win_platform? then 
+  if Gem.win_platform? then
     DEFAULT_POOL_SIZE = 256
   else
     DEFAULT_POOL_SIZE = Process.getrlimit(Process::RLIMIT_NOFILE).first / 4
@@ -211,7 +211,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent you are using
 
-  VERSION = '3.0.0'
+  VERSION = '3.1.0'
 
   ##
   # Exceptions rescued for automatic retry on ruby 2.0.0.  This overlaps with
@@ -688,14 +688,14 @@ class Net::HTTP::Persistent
   end
 
   ##
-  # URI::escape wrapper
+  # CGI::escape wrapper
 
   def escape str
     CGI.escape str if str
   end
 
   ##
-  # URI::unescape wrapper
+  # CGI::unescape wrapper
 
   def unescape str
     CGI.unescape str if str
@@ -1030,7 +1030,7 @@ class Net::HTTP::Persistent
   # Returns the request.
 
   def request_setup req_or_uri # :nodoc:
-    req = if URI === req_or_uri then
+    req = if req_or_uri.respond_to? 'request_uri' then
             Net::HTTP::Get.new req_or_uri.request_uri
           else
             req_or_uri
@@ -1197,6 +1197,6 @@ application:
 
 end
 
-require 'net/http/persistent/connection'
-require 'net/http/persistent/pool'
+require_relative 'persistent/connection'
+require_relative 'persistent/pool'
 
