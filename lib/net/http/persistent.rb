@@ -688,14 +688,14 @@ class Net::HTTP::Persistent
   end
 
   ##
-  # URI::escape wrapper
+  # CGI::escape wrapper
 
   def escape str
     CGI.escape str if str
   end
 
   ##
-  # URI::unescape wrapper
+  # CGI::unescape wrapper
 
   def unescape str
     CGI.unescape str if str
