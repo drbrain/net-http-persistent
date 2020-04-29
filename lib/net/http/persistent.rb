@@ -904,14 +904,15 @@ class Net::HTTP::Persistent
   end
 
   ##
-  # Forces reconnection of HTTP connections.
+  # Forces reconnection of all HTTP connections, including TLS/SSL
+  # connections.
 
   def reconnect
     @generation += 1
   end
 
   ##
-  # Forces reconnection of SSL connections.
+  # Forces reconnection of only TLS/SSL connections.
 
   def reconnect_ssl
     @ssl_generation += 1
