@@ -259,7 +259,7 @@ class TestNetHttpPersistent < Minitest::Test
       assert_equal 123, c.http.open_timeout
       assert_equal 321, c.http.read_timeout
       assert_equal 42, c.http.keep_alive_timeout
-      assert_equal 5, c.http.max_retries
+      assert_equal 5, c.http.max_retries if c.http.respond_to?(:max_retries)
 
       c
     end
