@@ -567,7 +567,9 @@ class Net::HTTP::Persistent
 
     net_http_args = [uri.hostname, uri.port]
 
-    if @proxy_uri and not proxy_bypass? uri.hostname, uri.port then
+    # I'm unsure if uri.host or uri.hostname should be checked against
+    # the proxy bypass list.
+    if @proxy_uri and not proxy_bypass? uri.host, uri.port then
       net_http_args.concat @proxy_args
     else
       net_http_args.concat [nil, nil, nil, nil]
