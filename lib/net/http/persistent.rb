@@ -17,15 +17,11 @@ autoload :OpenSSL, 'openssl'
 # servers you wish to talk to.  For each host:port you communicate with a
 # single persistent connection is created.
 #
-# Multiple Net::HTTP::Persistent objects will share the same set of
-# connections.
+# Connections will be shared across threads through a connection pool to
+# increase reuse of connections.
 #
-# For each thread you start a new connection will be created.  A
-# Net::HTTP::Persistent connection will not be shared across threads.
-#
-# You can shut down the HTTP connections when done by calling #shutdown.  You
-# should name your Net::HTTP::Persistent object if you intend to call this
-# method.
+# You can shut down any remaining HTTP connections when done by calling
+# #shutdown.
 #
 # Example:
 #
@@ -33,7 +29,7 @@ autoload :OpenSSL, 'openssl'
 #
 #   uri = URI 'http://example.com/awesome/web/service'
 #
-#   http = Net::HTTP::Persistent.new name: 'my_app_name'
+#   http = Net::HTTP::Persistent.new
 #
 #   # perform a GET
 #   response = http.request uri
@@ -55,14 +51,14 @@ autoload :OpenSSL, 'openssl'
 # to use URI#request_uri not URI#path.  The request_uri contains the query
 # params which are sent in the body for other requests.
 #
-# == SSL
+# == TLS/SSL
 #
-# SSL connections are automatically created depending upon the scheme of the
-# URI.  SSL connections are automatically verified against the default
+# TLS connections are automatically created depending upon the scheme of the
+# URI.  TLS connections are automatically verified against the default
 # certificate store for your computer.  You can override this by changing
 # verify_mode or by specifying an alternate cert_store.
 #
-# Here are the SSL settings, see the individual methods for documentation:
+# Here are the TLS settings, see the individual methods for documentation:
 #
 # #certificate        :: This client's certificate
 # #ca_file            :: The certificate-authorities
@@ -72,7 +68,7 @@ autoload :OpenSSL, 'openssl'
 # #private_key        :: The client's SSL private key
 # #reuse_ssl_sessions :: Reuse a previously opened SSL session for a new
 #                        connection
-# #ssl_timeout        :: SSL session lifetime
+# #ssl_timeout        :: Session lifetime
 # #ssl_version        :: Which specific SSL version to use
 # #verify_callback    :: For server certificate verification
 # #verify_depth       :: Depth of certificate verification
@@ -101,14 +97,15 @@ autoload :OpenSSL, 'openssl'
 #
 # === Segregation
 #
-# By providing an application name to ::new you can separate your connections
-# from the connections of other applications.
+# Each Net::HTTP::Persistent instance has its own pool of connections.  There
+# is no sharing with other instances (as was true in earlier versions).
 #
 # === Idle Timeout
 #
-# If a connection hasn't been used for this number of seconds it will automatically be
-# reset upon the next use to avoid attempting to send to a closed connection.
-# The default value is 5 seconds. nil means no timeout. Set through #idle_timeout.
+# If a connection hasn't been used for this number of seconds it will
+# automatically be reset upon the next use to avoid attempting to send to a
+# closed connection.  The default value is 5 seconds. nil means no timeout.
+# Set through #idle_timeout.
 #
 # Reducing this value may help avoid the "too many connection resets" error
 # when sending non-idempotent requests while increasing this value will cause
@@ -123,8 +120,9 @@ autoload :OpenSSL, 'openssl'
 #
 # The number of requests that should be made before opening a new connection.
 # Typically many keep-alive capable servers tune this to 100 or less, so the
-# 101st request will fail with ECONNRESET. If unset (default), this value has no
-# effect, if set, connections will be reset on the request after max_requests.
+# 101st request will fail with ECONNRESET. If unset (default), this value has
+# no effect, if set, connections will be reset on the request after
+# max_requests.
 #
 # === Open Timeout
 #
@@ -200,7 +198,9 @@ class Net::HTTP::Persistent
   HAVE_OPENSSL = defined? OpenSSL::SSL # :nodoc:
 
   ##
-  # The default connection pool size is 1/4 the allowed open files.
+  # The default connection pool size is 1/4 the allowed open files
+  # (<code>ulimit -n</code>) or 256 if your OS does not support file handle
+  # limits (typically windows).
 
   if Process.const_defined? :RLIMIT_NOFILE
     DEFAULT_POOL_SIZE = Process.getrlimit(Process::RLIMIT_NOFILE).first / 4
@@ -365,8 +365,7 @@ class Net::HTTP::Persistent
   attr_accessor :keep_alive
 
   ##
-  # A name for this connection.  Allows you to keep your connections apart
-  # from everybody else's.
+  # The name for this collection of persistent connections.
 
   attr_reader :name
 
@@ -509,9 +508,8 @@ class Net::HTTP::Persistent
   ##
   # Creates a new Net::HTTP::Persistent.
   #
-  # Set +name+ to keep your connections apart from everybody else's.  Not
-  # required currently, but highly recommended.  Your library name should be
-  # good enough.  This parameter will be required in a future version.
+  # Set a +name+ for fun.  Your library name should be good enough, but this
+  # otherwise has no purpose.
   #
   # +proxy+ may be set to a URI::HTTP or :ENV to pick up proxy options from
   # the environment.  See proxy_from_env for details.
@@ -524,8 +522,9 @@ class Net::HTTP::Persistent
   #   proxy.password = 'hunter2'
   #
   # Set +pool_size+ to limit the maximum number of connections allowed.
-  # Defaults to 1/4 the number of allowed file handles.  You can have no more
-  # than this many threads with active HTTP transactions.
+  # Defaults to 1/4 the number of allowed file handles or 256 if your OS does
+  # not support a limit on allowed file handles.  You can have no more than
+  # this many threads with active HTTP transactions.
 
   def initialize name: nil, proxy: nil, pool_size: DEFAULT_POOL_SIZE
     @name = name

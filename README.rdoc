@@ -5,23 +5,23 @@ rdoc :: http://docs.seattlerb.org/net-http-persistent
 
 == DESCRIPTION:
 
-Manages persistent connections using Net::HTTP plus a speed fix for Ruby 1.8.
-It's thread-safe too!
+Manages persistent connections using Net::HTTP including a thread pool for
+connecting to multiple hosts.
 
 Using persistent HTTP connections can dramatically increase the speed of HTTP.
 Creating a new HTTP connection for every request involves an extra TCP
 round-trip and causes TCP congestion avoidance negotiation to start over.
 
 Net::HTTP supports persistent connections with some API methods but does not
-handle reconnection gracefully.  Net::HTTP::Persistent supports reconnection
-and retry according to RFC 2616.
+make setting up a single persistent connection or managing multiple
+connections easy.  Net::HTTP::Persistent wraps Net::HTTP and allows you to
+focus on how to make HTTP requests.
 
 == FEATURES/PROBLEMS:
 
-* Supports SSL
+* Supports TLS with secure defaults
 * Thread-safe
 * Pure ruby
-* Timeout-less speed boost for Ruby 1.8 (by Aaron Patterson)
 
 == SYNOPSIS
 
@@ -60,7 +60,7 @@ including SSL connection verification, header handling and tunable options.
 
 (The MIT License)
 
-Copyright (c) 2010 Eric Hodel, Aaron Patterson
+Copyright (c) Eric Hodel, Aaron Patterson
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
