@@ -2,6 +2,8 @@
 
 Breaking changes:
 
+* Removed built-in support for retrying failed requests as Net::HTTP has this
+  built-in for all supported versions.  Pull request #100 by Michael Grosser.
 * Dropped support for EoL ruby versions (< 2.4).  Future feature releases may
   drop support for ruby versions that are at end-of-life or in security-only
   maintenance mode with any release.  Pull request #113 by David Rodríguez
