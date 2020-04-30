@@ -248,6 +248,7 @@ class TestNetHttpPersistent < Minitest::Test
     @http.open_timeout = 123
     @http.read_timeout = 321
     @http.idle_timeout = 42
+    @http.max_retries  = 5
 
     used = @http.connection_for @uri do |c|
       assert_kind_of Net::HTTP, c.http
@@ -258,6 +259,7 @@ class TestNetHttpPersistent < Minitest::Test
       assert_equal 123, c.http.open_timeout
       assert_equal 321, c.http.read_timeout
       assert_equal 42, c.http.keep_alive_timeout
+      assert_equal 5, c.http.max_retries
 
       c
     end
@@ -724,6 +726,13 @@ class TestNetHttpPersistent < Minitest::Test
     @http.request @uri_v6
 
     assert_equal '1.1', @http.http_version(@uri_v6)
+  end
+
+  def test_max_retries_equals
+    @http.max_retries = 5
+
+    assert_equal 5, @http.max_retries
+    assert_equal 1, @http.generation
   end
 
   def test_normalize_uri

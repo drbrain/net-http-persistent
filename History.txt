@@ -8,6 +8,8 @@ Breaking changes:
 
 New features:
 
+* Added Net::HTTP::Persistent#max_retries= to configure the number of retries
+  performed on a request for ruby versions that support it (2.5+).
 * Use require_relative to reduce patch burden for vendored versions.  Pull
   Request #106 by David Rodríguez
 * URI-ness is determined through #respond_to? to allow compatibility with

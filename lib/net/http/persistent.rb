@@ -300,6 +300,13 @@ class Net::HTTP::Persistent
   attr_accessor :max_requests
 
   ##
+  # Number of retries to perform if a request fails.
+  #
+  # See also #max_retries=, Net::HTTP#max_retries=.
+
+  attr_reader :max_retries
+
+  ##
   # The value sent in the Keep-Alive header.  Defaults to 30.  Not needed for
   # HTTP/1.1 servers.
   #
@@ -476,6 +483,7 @@ class Net::HTTP::Persistent
     @write_timeout    = nil
     @idle_timeout     = 5
     @max_requests     = nil
+    @max_retries      = 1
     @socket_options   = []
     @ssl_generation   = 0 # incremented when SSL session variables change
 
@@ -589,9 +597,11 @@ class Net::HTTP::Persistent
       reset connection
     end
 
-    http.read_timeout = @read_timeout if @read_timeout
-    http.write_timeout = @write_timeout if @write_timeout && http.respond_to?(:write_timeout=)
-    http.keep_alive_timeout = @idle_timeout if @idle_timeout
+    http.keep_alive_timeout = @idle_timeout  if @idle_timeout
+    http.max_retries        = @max_retries   if http.respond_to?(:max_retries=)
+    http.read_timeout       = @read_timeout  if @read_timeout
+    http.write_timeout      = @write_timeout if
+      @write_timeout && http.respond_to?(:write_timeout=)
 
     return yield connection
   rescue Errno::ECONNREFUSED
@@ -676,6 +686,23 @@ class Net::HTTP::Persistent
 
   def normalize_uri uri
     (uri =~ /^https?:/) ? uri : "http://#{uri}"
+  end
+
+  ##
+  # Set the maximum number of retries for a request.
+  #
+  # Defaults to one retry.
+  #
+  # Set this to 0 to disable retries.
+
+  def max_retries= retries
+    retries = retries.to_int
+
+    raise ArgumentError, "max_retries must be positive" if retries < 0
+
+    @max_retries = retries
+
+    reconnect
   end
 
   ##
