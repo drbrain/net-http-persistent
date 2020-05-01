@@ -16,7 +16,6 @@ New features:
   Addressable::URI.  Pull request #67 by Ryan McKern.
 * Use require_relative to reduce patch burden for vendored versions.  Pull
   Request #106 by David Rodríguez
-* Merge pull request #76 from stepnivlk/master
 
 Bug fixes:
 
