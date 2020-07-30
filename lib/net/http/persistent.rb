@@ -981,8 +981,8 @@ class Net::HTTP::Persistent
     connection.min_version = @min_version if @min_version
     connection.max_version = @max_version if @max_version
 
-    connection.verify_depth = @verify_depth
-    connection.verify_mode  = @verify_mode
+    connection.verify_depth    = @verify_depth
+    connection.verify_mode     = @verify_mode
     connection.verify_hostname = @verify_hostname if
       @verify_hostname && connection.respond_to?(:verify_hostname=)
 
