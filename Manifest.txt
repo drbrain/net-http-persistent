@@ -1,6 +1,5 @@
 .autotest
 .gemtest
-.travis.yml
 Gemfile
 History.txt
 Manifest.txt
