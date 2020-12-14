@@ -12,11 +12,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby: [2.4, 2.5, 2.6, 2.7]
+        ruby: [2.4, 2.5, 2.6, 2.7, jruby-9.2]
+        os: [ubuntu-20.04, windows-2019]
         include:
-          - { ruby: 2.7, matrix: pipeline }
+          - { ruby: 2.7, os: ubuntu-20.04, matrix: pipeline }
 
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.os }}
 
     env:
       TRAVIS_MATRIX: ${{ matrix.matrix }}
