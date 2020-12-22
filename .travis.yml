@@ -1,9 +1,7 @@
 ---
-after_script:
-- rake travis:after -t
 before_script:
-- gem install hoe-travis --no-document
-- rake travis:before -t
+- gem install hoe --no-document
+- rake install_plugins check_extra_deps -t
 language: ruby
 notifications:
   email:
@@ -14,7 +12,7 @@ rvm:
 - 2.5
 - 2.6
 - 2.7
-script: rake travis
+script: rake test check_manifest
 install: "" # avoid running default bundler install
 
 matrix:
