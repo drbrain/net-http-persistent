@@ -1,3 +1,9 @@
+=== 4.0.1 / 2021-01-12
+
+Bug fixes:
+
+* Loosen Ruby version requirement so Ruby 3.0 will work.
+
 === 4.0.0 / 2020-04-30
 
 Breaking changes:
