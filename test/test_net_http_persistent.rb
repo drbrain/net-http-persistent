@@ -272,7 +272,7 @@ class TestNetHttpPersistent < Minitest::Test
     assert_same used, stored
   end
 
-  def test_connection_for_starvation
+  def test_connection_for_exhaustion
     @http = Net::HTTP::Persistent.new pool_size: 0
 
     assert_raises Timeout::Error do
