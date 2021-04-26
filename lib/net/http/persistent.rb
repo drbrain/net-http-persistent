@@ -37,7 +37,7 @@ autoload :OpenSSL, 'openssl'
 #   # or
 #
 #   get = Net::HTTP::Get.new uri.request_uri
-#   response = http.request get
+#   response = http.request uri, get
 #
 #   # create a POST
 #   post_uri = uri + 'create'
