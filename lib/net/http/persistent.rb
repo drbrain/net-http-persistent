@@ -460,7 +460,7 @@ class Net::HTTP::Persistent
   # You can set +verify_hostname+ as true to use hostname verification
   # during the handshake.
   #
-  # NOTE: This may work with Ruby > 2.8.
+  # NOTE: This works with Ruby > 3.0.
 
   attr_reader :verify_hostname
 
