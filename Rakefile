@@ -2,8 +2,6 @@
 
 require 'hoe'
 
-Hoe.plugin :minitest
-
 Hoe.spec 'net-http-persistent' do
   developer 'Eric Hodel', 'drbrain@segment7.net'
 
