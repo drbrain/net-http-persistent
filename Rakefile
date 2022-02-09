@@ -2,7 +2,6 @@
 
 require 'hoe'
 
-Hoe.plugin :git
 Hoe.plugin :minitest
 
 Hoe.spec 'net-http-persistent' do
