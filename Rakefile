@@ -12,9 +12,6 @@ Hoe.spec 'net-http-persistent' do
 
   license 'MIT'
 
-  rdoc_locations <<
-    'docs-push.seattlerb.org:/data/www/docs.seattlerb.org/net-http-persistent/'
-
   dependency 'connection_pool',   '~> 2.2'
   dependency 'minitest',          '~> 5.2', :development
   dependency 'net-http-pipeline', '~> 1.0' if

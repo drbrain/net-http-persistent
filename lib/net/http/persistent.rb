@@ -710,7 +710,7 @@ class Net::HTTP::Persistent
   # block is given.  Returns all responses received.
   #
   # See
-  # Net::HTTP::Pipeline[http://docs.seattlerb.org/net-http-pipeline/Net/HTTP/Pipeline.html]
+  # Net::HTTP::Pipeline[https://rdoc.info/gems/net-http-pipeline/Net/HTTP/Pipeline]
   # for further details.
   #
   # Only if <tt>net-http-pipeline</tt> was required before
