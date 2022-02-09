@@ -1,7 +1,4 @@
 ---
-before_script:
-- gem install hoe --no-document
-- rake install_plugins check_extra_deps -t
 language: ruby
 notifications:
   email:
@@ -11,8 +8,7 @@ rvm:
 - 2.5
 - 2.6
 - 2.7
-script: rake test check_manifest
-install: "" # avoid running default bundler install
+script: rake test manifest:check
 
 matrix:
   include:
