@@ -20,7 +20,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      TRAVIS_MATRIX: ${{ matrix.matrix }}
+      CI_MATRIX: ${{ matrix.matrix }}
 
     steps:
     - uses: actions/checkout@v2
