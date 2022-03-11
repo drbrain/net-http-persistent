@@ -164,7 +164,14 @@ class Net::HTTP::Persistent
   # limits (typically windows).
 
   if Process.const_defined? :RLIMIT_NOFILE
-    DEFAULT_POOL_SIZE = Process.getrlimit(Process::RLIMIT_NOFILE).first / 4
+    open_file_limits = Process.getrlimit(Process::RLIMIT_NOFILE)
+
+    # Under JRuby on Windows Process responds to `getrlimit` but returns something that does not match docs
+    if open_file_limits.respond_to?(:first)
+      DEFAULT_POOL_SIZE = open_file_limits.first / 4
+    else
+      DEFAULT_POOL_SIZE = 256
+    end
   else
     DEFAULT_POOL_SIZE = 256
   end
@@ -710,7 +717,7 @@ class Net::HTTP::Persistent
   # block is given.  Returns all responses received.
   #
   # See
-  # Net::HTTP::Pipeline[http://docs.seattlerb.org/net-http-pipeline/Net/HTTP/Pipeline.html]
+  # Net::HTTP::Pipeline[https://rdoc.info/gems/net-http-pipeline/Net/HTTP/Pipeline]
   # for further details.
   #
   # Only if <tt>net-http-pipeline</tt> was required before

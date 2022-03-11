@@ -1,0 +1,36 @@
+name: Test
+
+on:
+  pull_request:
+
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: [2.4, 2.5, 2.6, 2.7, '3.0', 3.1, jruby-9.2]
+        os: [ubuntu-20.04, windows-2019]
+        include:
+          - { ruby: 3.1, os: ubuntu-20.04, matrix: pipeline }
+
+    runs-on: ${{ matrix.os }}
+
+    env:
+      CI_MATRIX: ${{ matrix.matrix }}
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby }}
+        rubygems: 3.3.6
+        bundler-cache: true
+
+    - name: Test things
+      run: bundle exec rake test manifest:check
