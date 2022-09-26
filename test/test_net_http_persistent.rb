@@ -1244,6 +1244,17 @@ class TestNetHttpPersistent < Minitest::Test
     refute c2.http.finished?, 'present generation connection must not be finished'
   end
 
+  def test_reload
+    c = connection
+
+    @http.reload
+
+    c2 = connection
+
+    assert c.http.finished?, 'last-generation connection must be finished'
+    refute c2.http.finished?, 'present generation connection must not be finished'
+  end
+
   def test_ssl
     skip 'OpenSSL is missing' unless HAVE_OPENSSL
 
