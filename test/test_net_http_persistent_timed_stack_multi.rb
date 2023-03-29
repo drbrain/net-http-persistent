@@ -57,7 +57,7 @@ class TestNetHttpPersistentTimedStackMulti < Minitest::Test
       @stack.pop timeout: 0
     end
 
-    assert_equal 'Waited 0 sec', e.message
+    assert_equal 'Waited 0 sec, 0/0 available', e.message
   end
 
   def test_pop_full
