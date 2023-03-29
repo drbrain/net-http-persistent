@@ -1444,5 +1444,15 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal 1, @http.ssl_generation
   end
 
+  def test_connection_pool_after_fork
+    # ConnectionPool 2.4+ calls `checkin(force: true)` after fork
+    @http.pool.checkin(force: true)
+
+    @http.pool.checkout ['example.com', 80, nil, nil, nil, nil]
+    @http.pool.checkin(force: true)
+    @http.pool.reload do |connection|
+      connection.close
+    end
+  end
 end
 
