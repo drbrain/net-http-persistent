@@ -612,13 +612,23 @@ class Net::HTTP::Persistent
 
     return yield connection
   rescue Errno::ECONNREFUSED
-    address = http.proxy_address || http.address
-    port    = http.proxy_port    || http.port
+    if http.proxy?
+      address = http.proxy_address
+      port    = http.proxy_port
+    else
+      address = http.address
+      port    = http.port
+    end
 
     raise Error, "connection refused: #{address}:#{port}"
   rescue Errno::EHOSTDOWN
-    address = http.proxy_address || http.address
-    port    = http.proxy_port    || http.port
+    if http.proxy?
+      address = http.proxy_address
+      port    = http.proxy_port
+    else
+      address = http.address
+      port    = http.port
+    end
 
     raise Error, "host down: #{address}:#{port}"
   ensure

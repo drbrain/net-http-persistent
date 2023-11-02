@@ -116,6 +116,9 @@ class TestNetHttpPersistent < Minitest::Test
     end
     def proxy_port
     end
+    def proxy?
+      false
+    end
   end
 
   def basic_connection
