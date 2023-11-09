@@ -1,3 +1,9 @@
+=== 4.0.3 / 2023-11-09
+
+Bug fixes:
+
+* Allow ConnectionPool exceptions from checkout to bubble up to caller.
+
 === 4.0.2 / 2023-03-29
 
 Bug fixes:
