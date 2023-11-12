@@ -47,9 +47,8 @@ autoload :OpenSSL, 'openssl'
 #   # perform the POST, the URI is always required
 #   response http.request post_uri, post
 #
-# Note that for GET, HEAD and other requests that do not have a body you want
-# to use URI#request_uri not URI#path.  The request_uri contains the query
-# params which are sent in the body for other requests.
+# ⚠ Note that for GET, HEAD and other requests that do not have a body,
+# it uses URI#request_uri as default to send query params
 #
 # == TLS/SSL
 #
