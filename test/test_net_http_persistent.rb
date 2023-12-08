@@ -247,6 +247,14 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal 1, @http.ssl_generation
   end
 
+  def test_extra_chain_cert_equals
+    skip 'extra_chain_cert is not supported by Net::HTTP' unless Net::HTTP.method_defined?(:extra_chain_cert)
+    @http.extra_chain_cert = :extra_chain_cert
+
+    assert_equal :extra_chain_cert, @http.extra_chain_cert
+    assert_equal 1, @http.ssl_generation
+  end
+
   def test_connection_for
     @http.open_timeout = 123
     @http.read_timeout = 321
@@ -1340,6 +1348,19 @@ class TestNetHttpPersistent < Minitest::Test
 
     assert c.use_ssl?
     assert_equal OpenSSL::SSL::VERIFY_NONE, c.verify_mode
+  end
+
+  def test_ssl_extra_chain_cert
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+    skip 'extra_chain_cert is not supported by Net::HTTP' unless Net::HTTP.method_defined?(:extra_chain_cert)
+
+    @http.extra_chain_cert = :extra_chain_cert
+    c = Net::HTTP.new 'localhost', 80
+
+    @http.ssl c
+
+    assert c.use_ssl?
+    assert_equal :extra_chain_cert, c.extra_chain_cert
   end
 
   def test_ssl_warning
