@@ -1001,7 +1001,7 @@ class Net::HTTP::Persistent
     connection.verify_depth    = @verify_depth
     connection.verify_mode     = @verify_mode
     connection.verify_hostname = @verify_hostname if
-      @verify_hostname && connection.respond_to?(:verify_hostname=)
+      @verify_hostname != nil && connection.respond_to?(:verify_hostname=)
 
     if OpenSSL::SSL::VERIFY_PEER == OpenSSL::SSL::VERIFY_NONE and
        not Object.const_defined?(:I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG) then
@@ -1111,7 +1111,7 @@ application:
   end
 
   ##
-  # Sets the HTTPS verify_hostname.  Defaults to false.
+  # Sets the HTTPS verify_hostname.
 
   def verify_hostname= verify_hostname
     @verify_hostname = verify_hostname
@@ -1131,4 +1131,3 @@ end
 
 require_relative 'persistent/connection'
 require_relative 'persistent/pool'
-

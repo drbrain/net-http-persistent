@@ -1343,7 +1343,7 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal OpenSSL::SSL::VERIFY_NONE, c.verify_mode
   end
 
-  def test_ssl_verify_hostname
+  def test_ssl_enable_verify_hostname
     skip 'OpenSSL is missing' unless HAVE_OPENSSL
 
     @http.verify_hostname = true
@@ -1357,6 +1357,22 @@ class TestNetHttpPersistent < Minitest::Test
     assert c.use_ssl?
     assert c.verify_hostname
   end
+
+  def test_ssl_disable_verify_hostname
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
+    @http.verify_hostname = false
+    c = Net::HTTP.new 'localhost', 80
+
+    skip 'net/http doesn\'t provide verify_hostname= method' unless
+      c.respond_to?(:verify_hostname=)
+
+    @http.ssl c
+
+    assert c.use_ssl?
+    assert c.verify_hostname == false
+  end
+
 
   def test_ssl_warning
     skip 'OpenSSL is missing' unless HAVE_OPENSSL
@@ -1474,4 +1490,3 @@ class TestNetHttpPersistent < Minitest::Test
     end
   end
 end
-
