@@ -73,6 +73,8 @@ autoload :OpenSSL, 'openssl'
 # #verify_callback    :: For server certificate verification
 # #verify_depth       :: Depth of certificate verification
 # #verify_mode        :: How connections should be verified
+# #verify_hostname    :: Use hostname verification for server certificate
+#                        during the handshake
 #
 # == Proxies
 #
@@ -455,6 +457,21 @@ class Net::HTTP::Persistent
   attr_reader :verify_mode
 
   ##
+  # HTTPS verify_hostname.
+  #
+  # If a client sets this to true and enables SNI with SSLSocket#hostname=,
+  # the hostname verification on the server certificate is performed
+  # automatically during the handshake using
+  # OpenSSL::SSL.verify_certificate_identity().
+  #
+  # You can set +verify_hostname+ as true to use hostname verification
+  # during the handshake.
+  #
+  # NOTE: This works with Ruby > 3.0.
+
+  attr_reader :verify_hostname
+
+  ##
   # Creates a new Net::HTTP::Persistent.
   #
   # Set a +name+ for fun.  Your library name should be good enough, but this
@@ -513,6 +530,7 @@ class Net::HTTP::Persistent
     @verify_callback    = nil
     @verify_depth       = nil
     @verify_mode        = nil
+    @verify_hostname    = nil
     @cert_store         = nil
 
     @generation         = 0 # incremented when proxy URI changes
@@ -980,8 +998,10 @@ class Net::HTTP::Persistent
     connection.min_version = @min_version if @min_version
     connection.max_version = @max_version if @max_version
 
-    connection.verify_depth = @verify_depth
-    connection.verify_mode  = @verify_mode
+    connection.verify_depth    = @verify_depth
+    connection.verify_mode     = @verify_mode
+    connection.verify_hostname = @verify_hostname if
+      @verify_hostname && connection.respond_to?(:verify_hostname=)
 
     if OpenSSL::SSL::VERIFY_PEER == OpenSSL::SSL::VERIFY_NONE and
        not Object.const_defined?(:I_KNOW_THAT_OPENSSL_VERIFY_PEER_EQUALS_VERIFY_NONE_IS_WRONG) then
@@ -1086,6 +1106,15 @@ application:
 
   def verify_mode= verify_mode
     @verify_mode = verify_mode
+
+    reconnect_ssl
+  end
+
+  ##
+  # Sets the HTTPS verify_hostname.  Defaults to false.
+
+  def verify_hostname= verify_hostname
+    @verify_hostname = verify_hostname
 
     reconnect_ssl
   end
