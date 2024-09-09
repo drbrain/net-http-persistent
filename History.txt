@@ -1,4 +1,10 @@
-=== 4.0.2 / 2024-09-09
+=== 4.0.4 / 2024-09-09
+
+Bug fixes:
+
+* Allow setting verify_hostname to false
+
+=== 4.0.3 / 2024-09-09
 
 Bug fixes:
 
