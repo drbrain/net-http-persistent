@@ -996,7 +996,8 @@ class Net::HTTP::Persistent
   end
 
   ##
-  # Shuts down all connections
+  # Shuts down all connections. Attempting to checkout a connection after
+  # shutdown will raise an error.
   #
   # *NOTE*: Calling shutdown for can be dangerous!
   #
@@ -1005,6 +1006,17 @@ class Net::HTTP::Persistent
 
   def shutdown
     @pool.shutdown { |http| http.finish }
+  end
+
+  ##
+  # Discard all existing connections. Subsequent checkouts will create
+  # new connections as needed.
+  #
+  # If any thread is still using a connection it may cause an error!  Call
+  # #reload when you are completely done making requests!
+
+  def reload
+    @pool.reload { |http| http.finish }
   end
 
   ##
