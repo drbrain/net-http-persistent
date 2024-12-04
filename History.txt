@@ -1,3 +1,27 @@
+=== 4.0.5 / 2024-12-04
+
+Bug fixes:
+
+* Allow setting extra_chain_cert=
+
+=== 4.0.4 / 2024-09-09
+
+Bug fixes:
+
+* Allow setting verify_hostname to false
+
+=== 4.0.3 / 2024-09-09
+
+Bug fixes:
+
+* Handle Net::HTTP#verify_hostname was added in Ruby 3.0 or later. #120
+
+=== 4.0.2 / 2023-03-29
+
+Bug fixes:
+
+* Fix compatibility with `connection_pool 2.4+`
+
 === 4.0.1 / 2021-01-12
 
 Bug fixes:

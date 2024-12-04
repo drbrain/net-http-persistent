@@ -116,6 +116,9 @@ class TestNetHttpPersistent < Minitest::Test
     end
     def proxy_port
     end
+    def proxy?
+      false
+    end
   end
 
   def basic_connection
@@ -241,6 +244,14 @@ class TestNetHttpPersistent < Minitest::Test
     @http.ciphers = :ciphers
 
     assert_equal :ciphers, @http.ciphers
+    assert_equal 1, @http.ssl_generation
+  end
+
+  def test_extra_chain_cert_equals
+    skip 'extra_chain_cert is not supported by Net::HTTP' unless Net::HTTP.method_defined?(:extra_chain_cert)
+    @http.extra_chain_cert = :extra_chain_cert
+
+    assert_equal :extra_chain_cert, @http.extra_chain_cert
     assert_equal 1, @http.ssl_generation
   end
 
@@ -1267,6 +1278,7 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal OpenSSL::SSL::VERIFY_PEER, c.verify_mode
     assert_kind_of OpenSSL::X509::Store,    c.cert_store
     assert_nil c.verify_callback
+    assert_nil c.verify_hostname if c.respond_to?(:verify_hostname)
   end
 
   def test_ssl_ca_file
@@ -1348,6 +1360,49 @@ class TestNetHttpPersistent < Minitest::Test
 
     assert c.use_ssl?
     assert_equal OpenSSL::SSL::VERIFY_NONE, c.verify_mode
+  end
+
+  def test_ssl_enable_verify_hostname
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
+    @http.verify_hostname = true
+    c = Net::HTTP.new 'localhost', 80
+
+    skip 'net/http doesn\'t provide verify_hostname= method' unless
+      c.respond_to?(:verify_hostname=)
+
+    @http.ssl c
+
+    assert c.use_ssl?
+    assert c.verify_hostname
+  end
+
+  def test_ssl_disable_verify_hostname
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+
+    @http.verify_hostname = false
+    c = Net::HTTP.new 'localhost', 80
+
+    skip 'net/http doesn\'t provide verify_hostname= method' unless
+      c.respond_to?(:verify_hostname=)
+
+    @http.ssl c
+
+    assert c.use_ssl?
+    assert c.verify_hostname == false
+  end
+
+  def test_ssl_extra_chain_cert
+    skip 'OpenSSL is missing' unless HAVE_OPENSSL
+    skip 'extra_chain_cert is not supported by Net::HTTP' unless Net::HTTP.method_defined?(:extra_chain_cert)
+
+    @http.extra_chain_cert = :extra_chain_cert
+    c = Net::HTTP.new 'localhost', 80
+
+    @http.ssl c
+
+    assert c.use_ssl?
+    assert_equal :extra_chain_cert, c.extra_chain_cert
   end
 
   def test_ssl_warning
@@ -1455,5 +1510,14 @@ class TestNetHttpPersistent < Minitest::Test
     assert_equal 1, @http.ssl_generation
   end
 
-end
+  def test_connection_pool_after_fork
+    # ConnectionPool 2.4+ calls `checkin(force: true)` after fork
+    @http.pool.checkin(force: true)
 
+    @http.pool.checkout ['example.com', 80, nil, nil, nil, nil]
+    @http.pool.checkin(force: true)
+    @http.pool.reload do |connection|
+      connection.close
+    end
+  end
+end

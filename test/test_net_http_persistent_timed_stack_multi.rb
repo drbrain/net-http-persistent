@@ -4,10 +4,15 @@ require 'net/http/persistent'
 class TestNetHttpPersistentTimedStackMulti < Minitest::Test
 
   class Connection
-    attr_reader :host
+    attr_reader :host, :closed
 
     def initialize(host)
       @host = host
+      @closed = false
+    end
+
+    def close
+      @closed = true
     end
   end
 
@@ -67,6 +72,18 @@ class TestNetHttpPersistentTimedStackMulti < Minitest::Test
 
     refute_nil popped
     assert_empty stack
+  end
+
+  def test_pop_closes_extra_connections
+    stack = Net::HTTP::Persistent::TimedStackMulti.new(1) { |host| Connection.new(host) }
+
+    a_conn = stack.pop connection_args: 'a.example'
+    stack.push a_conn, connection_args: 'a.example'
+
+    b_conn = stack.pop connection_args: 'b.example'
+
+    assert a_conn.closed
+    refute b_conn.closed
   end
 
   def test_pop_wait

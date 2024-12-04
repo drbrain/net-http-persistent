@@ -25,6 +25,7 @@ class Net::HTTP::Persistent::Connection # :nodoc:
   ensure
     reset
   end
+  alias_method :close, :finish
 
   def reset
     @last_use = Net::HTTP::Persistent::EPOCH
