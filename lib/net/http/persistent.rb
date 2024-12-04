@@ -65,6 +65,7 @@ autoload :OpenSSL, 'openssl'
 # #ca_path            :: Directory with certificate-authorities
 # #cert_store         :: An SSL certificate store
 # #ciphers            :: List of SSl ciphers allowed
+# #extra_chain_cert   :: Extra certificates to be added to the certificate chain
 # #private_key        :: The client's SSL private key
 # #reuse_ssl_sessions :: Reuse a previously opened SSL session for a new
 #                        connection
@@ -271,6 +272,11 @@ class Net::HTTP::Persistent
   # The ciphers allowed for SSL connections
 
   attr_reader :ciphers
+
+  ##
+  # Extra certificates to be added to the certificate chain
+
+  attr_reader :extra_chain_cert
 
   ##
   # Sends debug_output to this IO via Net::HTTP#set_debug_output.
@@ -590,6 +596,21 @@ class Net::HTTP::Persistent
     @ciphers = ciphers
 
     reconnect_ssl
+  end
+
+  if Net::HTTP.method_defined?(:extra_chain_cert=)
+    ##
+    # Extra certificates to be added to the certificate chain.
+    # It is only supported starting from Net::HTTP version 0.1.1
+    def extra_chain_cert= extra_chain_cert
+      @extra_chain_cert = extra_chain_cert
+
+      reconnect_ssl
+    end
+  else
+    def extra_chain_cert= _extra_chain_cert
+      raise "extra_chain_cert= is not supported by this version of Net::HTTP"
+    end
   end
 
   ##
@@ -1041,6 +1062,10 @@ application:
     if @certificate and @private_key then
       connection.cert = @certificate
       connection.key  = @private_key
+    end
+
+    if defined?(@extra_chain_cert) and @extra_chain_cert
+      connection.extra_chain_cert = @extra_chain_cert
     end
 
     connection.cert_store = if @cert_store then
