@@ -181,7 +181,7 @@ class Net::HTTP::Persistent
   ##
   # The version of Net::HTTP::Persistent you are using
 
-  VERSION = '4.0.5'
+  VERSION = '4.0.6'
 
   ##
   # Error class for errors raised by Net::HTTP::Persistent.  Various
@@ -630,47 +630,49 @@ class Net::HTTP::Persistent
 
     connection = @pool.checkout net_http_args
 
-    http = connection.http
+    begin
+      http = connection.http
 
-    connection.ressl @ssl_generation if
-      connection.ssl_generation != @ssl_generation
+      connection.ressl @ssl_generation if
+        connection.ssl_generation != @ssl_generation
 
-    if not http.started? then
-      ssl   http if use_ssl
-      start http
-    elsif expired? connection then
-      reset connection
+      if not http.started? then
+        ssl   http if use_ssl
+        start http
+      elsif expired? connection then
+        reset connection
+      end
+
+      http.keep_alive_timeout = @idle_timeout  if @idle_timeout
+      http.max_retries        = @max_retries   if http.respond_to?(:max_retries=)
+      http.read_timeout       = @read_timeout  if @read_timeout
+      http.write_timeout      = @write_timeout if
+        @write_timeout && http.respond_to?(:write_timeout=)
+
+      return yield connection
+    rescue Errno::ECONNREFUSED
+      if http.proxy?
+        address = http.proxy_address
+        port    = http.proxy_port
+      else
+        address = http.address
+        port    = http.port
+      end
+
+      raise Error, "connection refused: #{address}:#{port}"
+    rescue Errno::EHOSTDOWN
+      if http.proxy?
+        address = http.proxy_address
+        port    = http.proxy_port
+      else
+        address = http.address
+        port    = http.port
+      end
+
+      raise Error, "host down: #{address}:#{port}"
+    ensure
+      @pool.checkin net_http_args
     end
-
-    http.keep_alive_timeout = @idle_timeout  if @idle_timeout
-    http.max_retries        = @max_retries   if http.respond_to?(:max_retries=)
-    http.read_timeout       = @read_timeout  if @read_timeout
-    http.write_timeout      = @write_timeout if
-      @write_timeout && http.respond_to?(:write_timeout=)
-
-    return yield connection
-  rescue Errno::ECONNREFUSED
-    if http.proxy?
-      address = http.proxy_address
-      port    = http.proxy_port
-    else
-      address = http.address
-      port    = http.port
-    end
-
-    raise Error, "connection refused: #{address}:#{port}"
-  rescue Errno::EHOSTDOWN
-    if http.proxy?
-      address = http.proxy_address
-      port    = http.proxy_port
-    else
-      address = http.address
-      port    = http.port
-    end
-
-    raise Error, "host down: #{address}:#{port}"
-  ensure
-    @pool.checkin net_http_args
   end
 
   ##

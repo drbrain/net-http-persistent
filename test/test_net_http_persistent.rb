@@ -280,6 +280,16 @@ class TestNetHttpPersistent < Minitest::Test
     assert_same used, stored
   end
 
+  def test_connection_for_exhaustion
+    @http = Net::HTTP::Persistent.new pool_size: 0
+
+    assert_raises Timeout::Error do
+      @http.connection_for @uri do |c|
+        assert_same nil, c
+      end
+    end
+  end
+
   def test_connection_for_cached
     cached = basic_connection
     cached.http.start
