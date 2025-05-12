@@ -1,10 +1,7 @@
 require 'net/http'
 require 'uri'
-begin
-  require 'cgi/escape'
-rescue LoadError
-  require 'cgi/util' # for escaping
-end
+require 'cgi/escape'
+require 'cgi/util' unless defined?(CGI::EscapeExt)
 require 'connection_pool'
 
 begin
