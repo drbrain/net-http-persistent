@@ -27,6 +27,10 @@ class Net::HTTP::Persistent::TimedStackMulti < ConnectionPool::TimedStack # :nod
     @max - @created + @enqueued
   end
 
+  def idle
+    @enqueued
+  end
+
   private
 
   def connection_stored? options = {} # :nodoc:
@@ -38,7 +42,8 @@ class Net::HTTP::Persistent::TimedStackMulti < ConnectionPool::TimedStack # :nod
 
     @enqueued -= 1
     lru_update connection_args
-    @ques[connection_args].pop
+    connection, = @ques[connection_args].pop
+    connection
   end
 
   def lru_update connection_args # :nodoc:
@@ -53,7 +58,7 @@ class Net::HTTP::Persistent::TimedStackMulti < ConnectionPool::TimedStack # :nod
   end
 
   def store_connection obj, options = {} # :nodoc:
-    @ques[options[:connection_args]].push obj
+    @ques[options[:connection_args]].push [obj, current_time]
     @enqueued += 1
   end
 
@@ -63,7 +68,7 @@ class Net::HTTP::Persistent::TimedStackMulti < ConnectionPool::TimedStack # :nod
     if @created >= @max && @enqueued >= 1
       oldest, = @lru.first
       @lru.delete oldest
-      connection = @ques[oldest].pop
+      connection, = @ques[oldest].pop
       connection.close if connection.respond_to?(:close)
 
       @created -= 1
@@ -74,6 +79,22 @@ class Net::HTTP::Persistent::TimedStackMulti < ConnectionPool::TimedStack # :nod
       lru_update connection_args
       return @create_block.call(connection_args)
     end
+  end
+
+  def reserve_idle_connection(idle_seconds)
+    @ques.each_value do |que|
+      next if que.empty?
+
+      if current_time - que.first.last > idle_seconds
+        @created -= 1
+        @enqueued -= 1
+
+        connection, = que.shift
+        return connection
+      end
+    end
+
+    nil
   end
 
 end
