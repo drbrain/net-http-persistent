@@ -66,6 +66,7 @@ class Net::HTTP::Persistent::TimedStackMulti < ConnectionPool::TimedStack # :nod
       connection = @ques[oldest].pop
       connection.close if connection.respond_to?(:close)
 
+      @enqueued -= 1
       @created -= 1
     end
 
