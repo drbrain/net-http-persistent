@@ -476,6 +476,13 @@ class Net::HTTP::Persistent
 
   attr_reader :verify_hostname
 
+
+  ##
+  #  Sets whether to ignore end-of-file when reading a response body
+  #  with Content-Length headers.
+
+  attr_accessor :ignore_eof
+
   ##
   # Creates a new Net::HTTP::Persistent.
   #
@@ -515,6 +522,7 @@ class Net::HTTP::Persistent
     @max_retries      = 1
     @socket_options   = []
     @ssl_generation   = 0 # incremented when SSL session variables change
+    @ignore_eof       = nil
 
     @socket_options << [Socket::IPPROTO_TCP, Socket::TCP_NODELAY, 1] if
       Socket.const_defined? :TCP_NODELAY
@@ -643,6 +651,7 @@ class Net::HTTP::Persistent
         reset connection
       end
 
+      http.ignore_eof         = @ignore_eof    if @ignore_eof
       http.keep_alive_timeout = @idle_timeout  if @idle_timeout
       http.max_retries        = @max_retries   if http.respond_to?(:max_retries=)
       http.read_timeout       = @read_timeout  if @read_timeout
