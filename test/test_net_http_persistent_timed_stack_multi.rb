@@ -29,7 +29,7 @@ class TestNetHttpPersistentTimedStackMulti < Minitest::Test
 
     assert_empty stack
 
-    stack.push connection_args: popped
+    stack.push popped, connection_args: 'default'
 
     refute_empty stack
   end
@@ -43,7 +43,7 @@ class TestNetHttpPersistentTimedStackMulti < Minitest::Test
 
     assert_equal 0, stack.length
 
-    stack.push connection_args: popped
+    stack.push popped, connection_args: 'default'
 
     assert_equal 1, stack.length
   end
@@ -113,7 +113,7 @@ class TestNetHttpPersistentTimedStackMulti < Minitest::Test
 
     conn = stack.pop
 
-    stack.push connection_args: conn
+    stack.push conn, connection_args: 'default'
 
     refute_empty stack
   end
@@ -125,14 +125,16 @@ class TestNetHttpPersistentTimedStackMulti < Minitest::Test
       called << object
     end
 
-    @stack.push connection_args: Object.new
+    obj = Object.new
+    @stack.push obj, connection_args: 'default'
 
     refute_empty called
     assert_empty @stack
   end
 
   def test_shutdown
-    @stack.push connection_args: Object.new
+    obj = Object.new
+    @stack.push obj, connection_args: 'default'
 
     called = []
 
