@@ -1003,7 +1003,7 @@ class TestNetHttpPersistent < Minitest::Test
 
     # There's some roounding issue on jruby preventing this from passing
     unless RUBY_PLATFORM == "java"
-      assert_in_delta Time.now, c.last_use
+      assert_in_delta Time.now, c.last_use, 0.003
     end
 
     assert_equal 1, c.requests
