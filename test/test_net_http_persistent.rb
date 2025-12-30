@@ -1530,4 +1530,40 @@ class TestNetHttpPersistent < Minitest::Test
       connection.close
     end
   end
+
+  def test_reap_pool_removes_idle_connections
+    assert_equal 0, @http.pool.idle
+
+    connection
+    @http.request(@uri)
+
+    assert_equal 1, @http.pool.idle
+
+    @http.pool.reap(0) {}
+    assert_equal 0, @http.pool.idle
+  end
+
+  def test_reap_pool_removes_all_idle_connections
+    connection
+    connection @uri_v6
+
+    @http.request(@uri)
+    @http.request(@uri_v6)
+
+    assert_equal 2, @http.pool.idle
+
+    @http.pool.reap(0) {}
+    assert_equal 0, @http.pool.idle
+  end
+
+  def test_reap_pool_does_not_remove_connections_if_outside_idle_time
+    connection
+    @http.request(@uri)
+
+    assert_equal 1, @http.pool.idle
+
+    @http.pool.reap(1000) {}
+    assert_equal 1, @http.pool.idle
+  end
+
 end
