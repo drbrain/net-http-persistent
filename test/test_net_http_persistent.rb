@@ -80,7 +80,7 @@ class TestNetHttpPersistent < Minitest::Test
                   :read_timeout, :open_timeout, :keep_alive_timeout
     attr_accessor :ciphers, :ssl_timeout, :ssl_version, :min_version,
                   :max_version, :verify_depth, :verify_mode, :cert_store,
-                  :ca_file, :ca_path, :cert, :key
+                  :ca_file, :ca_path, :cert, :key, :ignore_eof
     attr_reader :req, :debug_output
     def initialize
       @started, @finished = 0, 0
@@ -1528,6 +1528,24 @@ class TestNetHttpPersistent < Minitest::Test
     @http.pool.checkin(force: true)
     @http.pool.reload do |connection|
       connection.close
+    end
+  end
+
+  def test_ignore_eof
+    @http.ignore_eof = true
+
+    connection
+
+    @http.connection_for @uri do |c|
+      assert c.http.ignore_eof
+    end
+
+    @http.ignore_eof = false
+
+    connection
+
+    @http.connection_for @uri do |c|
+      assert !c.http.ignore_eof
     end
   end
 end
