@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
   s.required_ruby_version = ">= 2.4".freeze
   s.summary = "Manages persistent connections using Net::HTTP including a thread pool for connecting to multiple hosts".freeze
 
-  s.add_runtime_dependency(%q<connection_pool>.freeze, ["~> 2.2", ">= 2.2.4"])
+  s.add_runtime_dependency(%q<connection_pool>.freeze, [">= 2.2.4", "< 4"])
   s.add_runtime_dependency(%q<cgi>.freeze, "~> 0.5.1")
 end
 

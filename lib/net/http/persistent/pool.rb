@@ -4,7 +4,7 @@ class Net::HTTP::Persistent::Pool < ConnectionPool # :nodoc:
   attr_reader :key # :nodoc:
 
   def initialize(options = {}, &block)
-    super
+    super(**options, &block)
 
     @available = Net::HTTP::Persistent::TimedStackMulti.new(@size, &block)
     @key = "current-#{@available.object_id}"
