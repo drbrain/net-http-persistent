@@ -1,6 +1,7 @@
 require 'net/http'
 require 'uri'
-require 'cgi' # for escaping
+require 'cgi/escape'
+require 'cgi/util' unless defined?(CGI::EscapeExt)
 require 'connection_pool'
 
 begin
@@ -835,7 +836,7 @@ class Net::HTTP::Persistent
       @proxy_connection_id = [nil, *@proxy_args].join ':'
 
       if @proxy_uri.query then
-        @no_proxy = CGI.parse(@proxy_uri.query)['no_proxy'].join(',').downcase.split(',').map { |x| x.strip }.reject { |x| x.empty? }
+        @no_proxy = URI.decode_www_form(@proxy_uri.query).filter_map { |k, v| v if k == 'no_proxy' }.join(',').downcase.split(',').map { |x| x.strip }.reject { |x| x.empty? }
       end
     end
 
