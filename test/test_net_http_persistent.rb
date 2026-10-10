@@ -75,6 +75,51 @@ class TestNetHttpPersistent < Minitest::Test
     Net::HTTP.use_connect :orig_connect
   end
 
+  def detect_idle_timeout_with responses, max
+    sleeps = []
+    closed = false
+    raw_http = Object.new
+    raw_http.define_singleton_method :request do |request|
+      response = responses.shift
+      raise response if Exception === response
+      response
+    end
+    connection = Struct.new(:http).new(raw_http)
+    client = Class.new(Net::HTTP::Persistent) do
+      define_method :connection_for do |uri, &block|
+        block.call connection
+      end
+      define_method :shutdown do
+        closed = true
+        super()
+      end
+    end
+    client.define_singleton_method(:sleep) { |duration| sleeps << duration }
+
+    result = client.detect_idle_timeout 'http://example.com/path', max
+    [result, sleeps, closed]
+  end
+
+  def test_detect_idle_timeout_max
+    ok = Net::HTTPOK.new '1.1', '200', 'OK'
+    assert_equal [2, [1, 2], true], detect_idle_timeout_with([ok, ok, ok], 2)
+  end
+
+  def test_detect_idle_timeout_zero
+    ok = Net::HTTPOK.new '1.1', '200', 'OK'
+    assert_equal [0, [], true], detect_idle_timeout_with([ok], 0)
+  end
+
+  def test_detect_idle_timeout_connection_closed
+    ok = Net::HTTPOK.new '1.1', '200', 'OK'
+    assert_equal [1, [1], true], detect_idle_timeout_with([ok, EOFError.new], 10)
+  end
+
+  def test_detect_idle_timeout_bad_response
+    bad = Net::HTTPServiceUnavailable.new '1.1', '503', 'Unavailable'
+    assert_equal [0, [], true], detect_idle_timeout_with([bad], 10)
+  end
+
   class BasicConnection
     attr_accessor :started, :finished, :address, :port, :use_ssl,
                   :read_timeout, :open_timeout, :keep_alive_timeout

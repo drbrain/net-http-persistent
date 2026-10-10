@@ -205,20 +205,20 @@ class Net::HTTP::Persistent
   # NOTE:  This may not work on ruby > 1.9.
 
   def self.detect_idle_timeout uri, max = 10
+    sleep_time = 0
+    http = nil
     uri = URI uri unless URI::Generic === uri
     uri += '/'
 
     req = Net::HTTP::Head.new uri.request_uri
 
-    http = new 'net-http-persistent detect_idle_timeout'
+    http = new name: 'net-http-persistent detect_idle_timeout'
 
     http.connection_for uri do |connection|
-      sleep_time = 0
-
-      http = connection.http
+      connection_http = connection.http
 
       loop do
-        response = http.request req
+        response = connection_http.request req
 
         $stderr.puts "HEAD #{uri} => #{response.code}" if $DEBUG
 
@@ -237,6 +237,7 @@ class Net::HTTP::Persistent
   rescue
     # ignore StandardErrors, we've probably found the idle timeout.
   ensure
+    http.shutdown if http
     return sleep_time unless $!
   end
 
